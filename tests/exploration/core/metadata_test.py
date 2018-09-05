@@ -88,3 +88,28 @@ class TestMetadata(PySparkTest):
         result = meta1.difference(meta2)
         expected_cohorts = {"acts"}
         self.assertSetEqual(expected_cohorts, result.cohorts_names())
+
+    @patch('src.exploration.core.metadata.Cohort')
+    def test_union_all(self, mock_Cohort):
+        meta1 = Metadata({"extract_patients": mock_Cohort, "acts": mock_Cohort})
+        meta2 = Metadata({"exposures": mock_Cohort, "outcomes": mock_Cohort,
+                          "extract_patients": mock_Cohort})
+        meta3 = Metadata({"diagnoses": mock_Cohort, "outcomes": mock_Cohort,
+                          "extract_patients": mock_Cohort})
+
+        result = Metadata.union_all([meta1, meta2, meta3])
+        expected_cohorts = {"extract_patients", "acts", "outcomes", "exposures",
+                            "diagnoses"}
+        self.assertSetEqual(expected_cohorts, result.cohorts_names())
+
+    @patch('src.exploration.core.metadata.Cohort')
+    def test_intersect_all(self, mock_Cohort):
+        meta1 = Metadata({"extract_patients": mock_Cohort, "acts": mock_Cohort})
+        meta2 = Metadata({"exposures": mock_Cohort, "outcomes": mock_Cohort,
+                          "extract_patients": mock_Cohort})
+        meta3 = Metadata({"diagnoses": mock_Cohort, "outcomes": mock_Cohort,
+                          "extract_patients": mock_Cohort})
+
+        result = Metadata.intersect_all([meta1, meta2, meta3])
+        expected_cohorts = {"extract_patients"}
+        self.assertSetEqual(expected_cohorts, result.cohorts_names())

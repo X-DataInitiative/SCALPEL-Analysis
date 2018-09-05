@@ -22,10 +22,10 @@ class Cohort(object):
     @staticmethod
     def from_json(input: Dict) -> 'Cohort':
         if input["output_type"] == "patients":
-            Cohort(input["name"], "Subjects_with_{}".format(input["name"]),
+            Cohort(input["name"], input["name"],
                    read_data_frame(input["output_path"]))
         else:
-            Cohort(input["name"], "Subjects_with_{}".format(input["name"]),
+            Cohort(input["name"], "Subjects_with_event_{}".format(input["name"]),
                    read_data_frame(input["population_path"]),
                    read_data_frame(input["output_path"]))
 
@@ -90,11 +90,19 @@ class Cohort(object):
     def intersect_all(cohorts: Iterable['Cohort']) -> 'Cohort':
         return fold_right(_intersection, cohorts)
 
+    @staticmethod
+    def difference_all(cohorts: Iterable['Cohort']) -> 'Cohort':
+        return fold_right(_difference, cohorts)
+
     def __eq__(self, other):
         if isinstance(other, Cohort):
             if self.events is not None and other.events is not None:
                 return (data_frame_equality(self.subjects, other.subjects)
                         and data_frame_equality(self.events, other.events))
+            else:
+                return data_frame_equality(self.subjects, other.subjects)
+        else:
+            return False
 
 
 def _union(a: Cohort, b: Cohort) -> Cohort:
@@ -109,22 +117,22 @@ def _union(a: Cohort, b: Cohort) -> Cohort:
 
 
 def _intersection(a: Cohort, b: Cohort) -> Cohort:
-    if a.events is None or b.events is None:
-        return Cohort("{}_and_{}".format(a.name, b.name),
-                      "{}_and_{}".format(a.characteristics, b.characteristics),
-                      a.subjects.intersect(b.subjects))
-    else:
-        return Cohort("{}_and_{}".format(a.name, b.name),
-                      "{}_and_{}".format(a.characteristics, b.characteristics),
-                      a.subjects.intersect(b.subjects), a.events.intersect(b.events))
+    subjects = a.subjects.intersect(b.subjects)
+    events = None
+    if a.events is not None:
+        events = a.events.join(subjects.select("patientID"), on="patientID")
+    return Cohort(a.name,
+                  "{}_with_{}".format(a.characteristics, b.characteristics),
+                  subjects,
+                  events)
 
 
 def _difference(a: Cohort, b: Cohort) -> Cohort:
-    if a.events is None or b.events is None:
-        return Cohort("{}_and_not_{}".format(a.name, b.name),
-                      "{}_and_not_{}".format(a.characteristics, b.characteristics),
-                      a.subjects.subtract(b.subjects))
-    else:
-        return Cohort("{}_and_not_{}".format(a.name, b.name),
-                      "{}_and_not_{}".format(a.characteristics, b.characteristics),
-                      a.subjects.subtract(b.subjects), a.events.subtract(b.events))
+    subjects = a.subjects.subtract(b.subjects)
+    events = None
+    if a.events is not None:
+        events = a.events.join(subjects.select("patientID"), on="patientID")
+    return Cohort(a.name,
+                  "{}_without_{}".format(a.characteristics, b.characteristics),
+                  subjects,
+                  events)

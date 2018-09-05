@@ -63,12 +63,12 @@ class Metadata:
         return _intersection(self, other)
 
     @staticmethod
-    def union_all(cohorts: Iterable['Metadata']) -> 'Metadata':
-        raise NotImplementedError
+    def union_all(metadatas: Iterable['Metadata']) -> 'Metadata':
+        return fold_right(_union, metadatas)
 
     @staticmethod
-    def intersect_all(cohorts: Iterable['Metadata']) -> 'Metadata':
-        raise NotImplementedError
+    def intersect_all(metadatas: Iterable['Metadata']) -> 'Metadata':
+        return fold_right(_intersection, metadatas)
 
     def __iter__(self):
         return iter(self.cohorts)

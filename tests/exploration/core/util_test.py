@@ -17,4 +17,5 @@ class TestUtil(PySparkTest):
         df, _ = self.create_spark_df({"patientID": [1, 2, 3]})
 
         self.assertTrue(data_frame_equality(df, df))
+        self.assertFalse(data_frame_equality(df, None))
 
