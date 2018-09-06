@@ -4,6 +4,12 @@ from functools import partial, wraps
 
 import matplotlib.pyplot as plt
 from matplotlib import ticker
+from matplotlib.backends.backend_pdf import PdfPages
+
+
+def register(f, registry):
+    registry.add(f)
+    return f
 
 
 def attach_wrapper(obj, func=None):
@@ -39,8 +45,7 @@ def saver(pdf):
     def decorate(f):
         def save_result(*args, **kwargs):
             fig = plt.figure()
-            ax = plt.gca()
-            f(axe=ax, *args, **kwargs)
+            f(figure=fig, *args, **kwargs)
             plt.tight_layout()
             pdf.savefig(fig)
 
@@ -160,3 +165,9 @@ def millify(x, pos):
         return '{:.1f}{}'.format(x / 10 ** (3 * millidx), millnames[millidx])
     else:
         return '{:.0f}{}'.format(x / 10 ** (3 * millidx), millnames[millidx])
+
+
+def save_plots(plot_functions, path, cohort):
+    with PdfPages(path) as pdf:
+        for p in plot_functions:
+            saver(pdf)(p)(cohort=cohort)
