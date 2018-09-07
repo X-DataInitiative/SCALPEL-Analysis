@@ -7,11 +7,6 @@ from matplotlib import ticker
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def register(f, registry):
-    registry.add(f)
-    return f
-
-
 def attach_wrapper(obj, func=None):
     if func is None:
         return partial(attach_wrapper, obj)
@@ -86,6 +81,24 @@ def ylabel_fontsize(size):
         def wrapper(*args, **kwargs):
             ax = plt.gca()
             [item.set_fontsize(size) for item in ax.get_yticklabels()]
+            return f(*args, **kwargs)
+
+        return wrapper
+
+    return decorate
+
+
+def show_labels(frequency):
+    def decorate(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            ax = plt.gca()
+            for i, label in enumerate(ax.xaxis.get_ticklabels()):
+                print(label)
+                if i % frequency == 0:
+                    label.set_visible(True)
+                else:
+                    label.set_visible(False)
             return f(*args, **kwargs)
 
         return wrapper
