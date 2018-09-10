@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Iterable, Dict
 
 from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, months_between, floor, lit
 
-from src.exploration.core.io import read_data_frame
+from src.exploration.core.io import read_data_frame, get_logger
 from src.exploration.core.util import data_frame_equality
 from .util import fold_right
 
@@ -23,11 +25,11 @@ class Cohort(object):
     def from_json(input: Dict) -> 'Cohort':
         if input["output_type"] == "patients":
             return Cohort(input["name"], input["name"],
-                   read_data_frame(input["output_path"]))
+                          read_data_frame(input["output_path"]))
         else:
             return Cohort(input["name"], "Subjects_with_event_{}".format(input["name"]),
-                   read_data_frame(input["population_path"]),
-                   read_data_frame(input["output_path"]))
+                          read_data_frame(input["population_path"]),
+                          read_data_frame(input["output_path"]))
 
     @staticmethod
     def from_description(description: str) -> 'Cohort':
@@ -73,6 +75,14 @@ class Cohort(object):
             raise TypeError('Expected a Spark DataFrame')
         self._events = value
 
+    def describe(self) -> str:
+        if self.events is None:
+            return ("This a subject cohort, no event needed" +
+                    "Subjects are from operation {}".format(self.name))
+        else:
+            return ("Events are {}.".format(self.name) +
+                    "Events contain only {}".format(self.characteristics))
+
     def union(self, other: 'Cohort') -> 'Cohort':
         return _union(self, other)
 
@@ -81,6 +91,58 @@ class Cohort(object):
 
     def difference(self, other: 'Cohort') -> 'Cohort':
         return _difference(self, other)
+
+    def has_subject_information(self) -> bool:
+        """Returns true if this cohort is the Base Cohort. The base population contains
+        extra columns specifically birthDate, deathDate and gender"""
+        return set(self.subjects.columns) == {"gender", "patientID", "deathDate",
+                                              "birthDate"}
+
+    def add_subject_information(self, base_cohort: 'Cohort',
+                                missing_patients="error") -> None:
+        """
+        Add information of gender and birthDate to subjects in place.
+        WARNING: CHANGE OF STATE.
+        :param missing_patients: behaviour from when missing patients are detected.
+        possible values are "error" or "omit_all" to omit patients and their events
+        or "omit_patients" to omit events and keep their events.
+        :param base_cohort: cohort that contain information.
+        :return: None. Mutation in place.
+        """
+        if missing_patients == "error":
+            subjects = self.subjects.join(base_cohort.subjects, on="patientID",
+                                          how="right")
+            extra_subjects_count = subjects.where(col("gender").isNull()).count()
+            if extra_subjects_count > 0:
+                raise ValueError(
+                    "Cohort {} contains {} subjects not in base cohort {}".format(
+                        self.name, extra_subjects_count, base_cohort.name))
+            else:
+                self._subjects = subjects
+        elif missing_patients == "omit_all":
+            get_logger().warning("Some patients and their events might"
+                                 + " be ommited")
+            self._subjects = self.subjects.join(base_cohort.subjects, on="patientID",
+                                                how="inner")
+            if self.events is not None:
+                self._events = self.events.join(
+                    self.subjects.select("patientID").distinct(),
+                    on="patientID",
+                    how="inner")
+        elif missing_patients == "omit":
+            get_logger().warning("Some patients might be ommited."
+                                 + " Their events are kept")
+            self._subjects = self.subjects.join(base_cohort.subjects, on="patientID",
+                                                how="inner")
+        else:
+            raise ValueError("missing_patients is erroneous. Possible options are "
+                             + "error, omit, omit_all")
+
+    def add_age_information(self, date: datetime) -> None:
+        self._subjects = self.subjects.withColumn("age", floor(
+            months_between(lit(date), col("birthDate")) / 12)).withColumn(
+            "ageBucket", floor(col("age") / 5)
+        )
 
     @staticmethod
     def union_all(cohorts: Iterable['Cohort']) -> 'Cohort':
@@ -117,10 +179,11 @@ def _union(a: Cohort, b: Cohort) -> Cohort:
 
 
 def _intersection(a: Cohort, b: Cohort) -> Cohort:
-    subjects = a.subjects.intersect(b.subjects)
+    subjects_id = a.subjects.select("patientID").intersect(b.subjects.select("patientID"))
+    subjects = a.subjects.join(subjects_id, on="patientID", how="right")
     events = None
     if a.events is not None:
-        events = a.events.join(subjects.select("patientID"), on="patientID", how='right')
+        events = a.events.join(subjects_id, on="patientID", how='right')
     return Cohort(a.name,
                   "{}_with_{}".format(a.characteristics, b.characteristics),
                   subjects,
@@ -128,10 +191,11 @@ def _intersection(a: Cohort, b: Cohort) -> Cohort:
 
 
 def _difference(a: Cohort, b: Cohort) -> Cohort:
-    subjects = a.subjects.subtract(b.subjects)
+    subjects_id = a.subjects.select("patientID").subtract(b.subjects.select("patientID"))
+    subjects = a.subjects.join(subjects_id, on="patientID", how="right")
     events = None
     if a.events is not None:
-        events = a.events.join(subjects.select("patientID"), on="patientID", how='right')
+        events = a.events.join(subjects_id, on="patientID", how='right')
     return Cohort(a.name,
                   "{}_without_{}".format(a.characteristics, b.characteristics),
                   subjects,

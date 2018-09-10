@@ -1,6 +1,10 @@
+from datetime import datetime
+
 import pandas as pd
+from pyspark.sql.functions import from_unixtime, col
 
 from src.exploration.core.cohort import Cohort
+from src.exploration.core.util import data_frame_equality
 from .pyspark_tests import PySparkTest
 
 
@@ -91,7 +95,7 @@ class TestCohort(PySparkTest):
         result = Cohort.intersect_all([cohort1, cohort2, cohort3])
 
         expected = Cohort("hospit_fractures", "hospit_fractures",
-                         patients_2, None)
+                          patients_2, None)
         self.assertEqual(result, expected)
 
     def test_difference(self):
@@ -140,3 +144,80 @@ class TestCohort(PySparkTest):
         expected = Cohort("hospit_fractures", "hospit_fractures",
                           patients_4, None)
         self.assertEqual(result, expected)
+
+    def test_has_subject_information(self):
+        patients_1, _ = self.create_spark_df({"patientID": [1, 2]})
+        cohort1 = Cohort("liberal_fractures", "liberal_fractures",
+                         patients_1)
+        patients_2, _ = self.create_spark_df({"patientID": [1, 2],
+                                              "gender": [1, 1],
+                                              "birthDate": [pd.to_datetime("1993-10-09"),
+                                                            pd.to_datetime("1992-03-14")],
+                                              "deathDate": [pd.to_datetime("1993-10-09"),
+                                                            pd.to_datetime(
+                                                                "1992-03-14")]})
+
+        cohort2 = Cohort("liberal_fractures", "liberal_fractures",
+                         patients_2, None)
+
+        self.assertFalse(cohort1.has_subject_information())
+        self.assertTrue(cohort2.has_subject_information())
+
+    def test_add_subject_information(self):
+        patients_1, _ = self.create_spark_df({"patientID": [1, 2], })
+        events_1, _ = self.create_spark_df({"patientID": [1, 2],
+                                            "value": ["fracture", "fracture"]})
+        input1 = Cohort("liberal_fractures", "liberal_fractures",
+                        patients_1, events_1)
+        patients_2, _ = self.create_spark_df({"patientID": [1, 2],
+                                              "gender": [1, 1],
+                                              "birthDate": [pd.to_datetime("1993-10-09"),
+                                                            pd.to_datetime("1992-03-14")],
+                                              "deathDate": [pd.to_datetime("1993-10-09"),
+                                                            pd.to_datetime(
+                                                                "1992-03-14")]})
+
+        base_cohort1 = Cohort("patients", "patients", patients_2)
+        input1.add_subject_information(base_cohort1, "error")
+
+        self.assertTrue(input1.has_subject_information()
+                        and input1.subjects.count() == 2)
+
+        patients_3, _ = self.create_spark_df({"patientID": [1],
+                                              "gender": [1],
+                                              "birthDate": [pd.to_datetime("1993-10-09")],
+                                              "deathDate": [
+                                                  pd.to_datetime("1993-10-09")]})
+        base_cohort2 = Cohort("liberal_fractures", "liberal_fractures",
+                              patients_3, None)
+        input2 = Cohort("liberal_fractures", "liberal_fractures",
+                        patients_1, events_1)
+        input2.add_subject_information(base_cohort2, "omit")
+        self.assertTrue(input2.has_subject_information()
+                        and input2.subjects.count() == 1
+                        and input2.events.count() == 2)
+
+        input3 = Cohort("liberal_fractures", "liberal_fractures",
+                        patients_1, events_1)
+        input3.add_subject_information(base_cohort2, "omit_all")
+        self.assertTrue(input3.has_subject_information()
+                        and input3.subjects.count() == 1
+                        and input3.events.count() == 1)
+
+    def test_add_age_information(self):
+        subjects, _ = self.create_spark_df({"birthTimestamp": [datetime(1993, 10, 9),
+                                                               datetime(1992, 3, 14)]})
+        input = Cohort("liberal_fractures", "liberal_fractures",
+                       subjects.withColumn("birthDate",
+                                           from_unixtime(col("birthTimestamp") / 1e9)),
+                       None)
+
+        input.add_age_information(datetime(2013, 1, 1))
+        result = input
+        expected_subjects, _ = self.create_spark_df(
+            {"age": [19, 20]
+             })
+        expected = Cohort("liberal_fractures", "liberal_fractures",
+                          expected_subjects, None)
+        self.assertTrue(data_frame_equality(result.subjects.select("age"),
+                                            expected.subjects.select("age")))

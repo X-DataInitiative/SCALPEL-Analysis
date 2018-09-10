@@ -1,6 +1,6 @@
 import copy
 import json
-from typing import Set
+from typing import Set, Tuple
 
 from .cohort import *
 
@@ -61,6 +61,41 @@ class Metadata:
 
     def intersection(self, other: 'Metadata') -> 'Metadata':
         return _intersection(self, other)
+
+    def _find_base_cohort(self) -> Tuple[str, Cohort]:
+        base_cohort = None
+        max_count = 0
+        base_cohort_name = None
+        for name, cohort in self.cohorts.items():
+            if cohort.has_subject_information() and cohort.subjects.count() > max_count:
+                base_cohort = cohort
+                max_count = cohort.subjects.count()
+                base_cohort_name = name
+        if max_count == 0:
+            get_logger().error("There is no Base cohort in this Metadata")
+        else:
+            return base_cohort_name, base_cohort
+
+    def _add_subjects_information(self, missing_patients, base_cohort_name, base_cohort) -> None:
+        for name, cohort in self.cohorts.items():
+            if name != base_cohort_name and not cohort.has_subject_information():
+                cohort.add_subject_information(base_cohort, missing_patients)
+
+    def add_subjects_information(self, missing_patients, reference_date=None) -> None:
+        """For the current metadata it will fetch a base cohort that contains all the
+        subjects with extra information and spread it through all cohorts.
+        Warning: This mutate the state of the cohort within the metadata.
+        :param reference_date: The study reference date used to compute age of subjects.
+        If None don't add, if value use it to compute age of patients.
+        :param missing_patients: behaviour from when missing patients are detected.
+        possible values are "error" or "omit_all" to omit patients and their events
+        or "omit_patients" to omit events and keep their events.
+        :return None
+        """
+        base_cohort_name, base_cohort = self._find_base_cohort()
+        if reference_date is not None:
+            base_cohort.add_age_information(reference_date)
+        self._add_subjects_information(missing_patients, base_cohort_name, base_cohort)
 
     @staticmethod
     def union_all(metadatas: Iterable['Metadata']) -> 'Metadata':
