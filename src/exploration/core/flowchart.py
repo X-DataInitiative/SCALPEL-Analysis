@@ -43,9 +43,12 @@ class Flowchart:
         return Flowchart(
             [new_metadata.get(step) for step in steps])
 
-    def flowchart(self, input: Cohort) -> 'Flowchart':
+    def create_flowchart(self, input: Cohort) -> 'Flowchart':
         """Create a flowchart for the input."""
-        return Flowchart([input.intersection(other) for other in self.steps])
+        new_steps = [input.intersection(self.steps[0])]  # type: List[Cohort]
+        for step in self.steps[1:]:
+            new_steps.append(new_steps[-1].intersection(step))
+        return Flowchart(new_steps)
 
     def __iter__(self):
         return iter(self.steps)
