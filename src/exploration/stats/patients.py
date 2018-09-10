@@ -1,30 +1,15 @@
 import seaborn as sns
 
-from src.exploration.core.decorators import register, save_plots
+from src.exploration.core.decorators import save_plots
+from src.exploration.stats.graph_utils import BUCKET_INTEGER_TO_STR, BUCKET_STR_TO_COLOR, \
+    GENDER_MAPPING
 
 registry = []
 
 
-def _get_string_maps(max_age):
-    age_lists = range(0, max_age, 5)
-    buckets = zip(age_lists[:-1], age_lists[1:])
-    string_maps = {i: "[{}, {}[".format(bucket[0], bucket[1]) for (
-        i, bucket) in enumerate(buckets)}
-    return string_maps
-
-
-def _get_color_maps(max_age):
-    age_lists = range(0, max_age, 5)
-    size = len(age_lists)
-    buckets = zip(age_lists[:-1], age_lists[1:])
-    palette = sns.color_palette("Paired", n_colors=size)
-    return {"[{}, {}[".format(bucket[0], bucket[1]): palette[i] for (
-        i, bucket) in enumerate(buckets)}
-
-
-BUCKET_INTEGER_TO_STR = _get_string_maps(120)
-BUCKET_STR_TO_COLOR = _get_color_maps(120)
-GENDER_MAPPING = {1: "Homme", 2: "Femme"}
+def register(f):
+    registry.append(f)
+    return f
 
 
 @register
@@ -33,10 +18,10 @@ def distribution_by_gender(figure, cohort):
         "num_patients").toPandas()
     ax = figure.gca()
     ax = sns.barplot(x="gender", data=df, y="count", ax=ax)
-    ax.set_xticklabels(["Homme", "Femme"])
-    ax.set_ylabel("Nombre de patients")
-    ax.set_xlabel("Genre")
-    ax.set_title("Distribution des {}\nsuivant le genre".format(cohort.characteristics))
+    ax.set_xticklabels(["Male", "Female"])
+    ax.set_ylabel("Count")
+    ax.set_xlabel("Gender")
+    ax.set_title("Gender distribution of \n{}".format(cohort.characteristics))
     return figure
 
 
@@ -82,4 +67,3 @@ def distribution_by_gender_age_bucket(figure, cohort):
 
 def save_patients_stats(path, cohort):
     save_plots(registry, path, cohort)
-

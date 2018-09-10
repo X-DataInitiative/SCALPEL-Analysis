@@ -17,8 +17,14 @@ def _prepare_data(outcomes: Cohort) -> pd.DataFrame:
     data = outcomes.events.groupBy("start").count().toPandas().sort_values("start")
     data = data.set_index("start")
     idx = pd.date_range(data.index.min(), data.index.max())
-    data.index = pd.DatetimeIndex(data.index, name="start")
     return data.reindex(idx, fill_value=0).reset_index()
+
+
+def _prepare_data(outcomes: Cohort, date_unit: str) -> pd.DataFrame:
+    data = outcomes.events.groupBy("start").count().toPandas().sort_values("start")
+    data = data.set_index("start")
+    idx = pd.date_range(data.index.min(), data.index.max(), name="start")
+    date = data.reindex(idx, fill_value=0).reset_index()
 
 
 def _plot_outcomes_per_day(outcomes: Cohort, figure: Figure, time_series):
