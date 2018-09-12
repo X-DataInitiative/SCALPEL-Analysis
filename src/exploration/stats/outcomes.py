@@ -1,5 +1,6 @@
 import pandas as pd
 import seaborn as sns
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from src.exploration.core.cohort import Cohort
@@ -15,96 +16,58 @@ def register(f):
 
 def _prepare_data(outcomes: Cohort) -> pd.DataFrame:
     data = outcomes.events.groupBy("start").count().toPandas().sort_values("start")
-    data = data.set_index("start")
-    idx = pd.date_range(data.index.min(), data.index.max())
-    return data.reindex(idx, fill_value=0).reset_index()
+    data = data.set_index(pd.DatetimeIndex(data.start, tz="Europe/Paris", ambiguous=True,
+                                           name="index")).sort_index()
+    return data.reset_index()
 
 
-def _prepare_data(outcomes: Cohort, date_unit: str) -> pd.DataFrame:
-    data = outcomes.events.groupBy("start").count().toPandas().sort_values("start")
-    data = data.set_index("start")
-    idx = pd.date_range(data.index.min(), data.index.max(), name="start")
-    date = data.reindex(idx, fill_value=0).reset_index()
+def _per_month(data: pd.DataFrame) -> pd.DataFrame:
+    return data.groupby([data["index"].dt.year, data["index"].dt.month]).sum()["count"]
 
 
-def _plot_outcomes_per_day(outcomes: Cohort, figure: Figure, time_series):
-    data = outcomes.events.groupBy("start").count().toPandas().sort_values("start")
-    ax = figure.gca()
-    data = data.set_index("start")
-    idx = pd.date_range(data.index.min(), data.index.max())
-    data.index = pd.DatetimeIndex(data.index)
-    data = data.reindex(idx, fill_value=0).reset_index()
-    if time_series:
-        data.groupby([data["index"].dt.year, data["index"].dt.month, ]).sum()[
-            "count"].plot(
-            kind="line", color=sns.xkcd_rgb["pumpkin orange"])
+def _per_week(data: pd.DataFrame) -> pd.DataFrame:
+    return data.groupby([data["index"].dt.year, data["index"].dt.week]).sum()["count"]
+
+
+def _per_day(data: pd.DataFrame) -> pd.DataFrame:
+    return data.groupby(data["index"]).sum()["count"]
+
+
+def _prepare_data_2(cohort: Cohort, date_unit: str) -> pd.DataFrame:
+    data = cohort.events.groupBy("start").count().toPandas().sort_values("start")
+    data = data.set_index(pd.DatetimeIndex(data.start, tz="Europe/Paris", ambiguous=True,
+                                           name="index")).sort_index().reset_index()
+    if date_unit == "day":
+        return _per_day(data)
+    elif date_unit == "month":
+        return _per_month(data)
+    elif date_unit == "week":
+        return _per_week(data)
     else:
+        raise ValueError("Wrong date unit {}. day, month, week only.".format(date_unit))
 
-        data.groupby([data["index"].dt.year, data["index"].dt.month, ]).sum()[
-            "count"].plot(
-            kind="bar", color=sns.color_palette(palette="Paired", n_colors=12))
+
+def _plot_bars(data: pd.DataFrame, ax: Axes) -> Axes:
+    ax.bar(range(len(data.index)), data.values, color=sns.xkcd_rgb["pumpkin orange"],
+           tick_label=data.index)
+    return ax
+
+
+def _plot_line(data: pd.DataFrame, ax: Axes) -> Axes:
+    data.plot(kind="line", color=sns.xkcd_rgb["pumpkin orange"])
     return ax
 
 
 @register
-@title("Time series of outcomes")
-@xlabel("Day")
-@ylabel("Count")
-def plot_outcomes_per_day_time_series(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort)
-    ax = figure.gca()
-    ax.plot(data["index"], data["count"], color=sns.xkcd_rgb["pumpkin orange"])
-    return figure
-
-
-@register
-@title("Time series of outcomes per month")
+@title("Outcomes per month")
 @xlabel("Month")
 @ylabel("Count")
-def plot_outcomes_per_month_time_series(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort)
-    data = data.groupby([data["index"].dt.year, data["index"].dt.month, ]).sum()["count"]
-    data.plot(kind="line", color=sns.xkcd_rgb["pumpkin orange"])
-    return figure
-
-
-@register
-@title("Time series of outcomes per week")
-@xlabel("Week")
-@ylabel("Count")
-def plot_outcomes_per_week_time_series(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort)
-    data = data.groupby([data["index"].dt.year,
-                         data["index"].dt.week]).sum()["count"]
-    data.plot(kind="line", color=sns.xkcd_rgb["pumpkin orange"])
-    return figure
-
-
-@register
-@title("Outcomes per day")
-@xlabel("Day")
-@ylabel("Count")
-def plot_outcomes_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort)
+def plot_outcomes_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
+    data = _prepare_data_2(cohort, "month")
     ax = figure.gca()
-    sns.barplot(x=data.index, y=data["count"], ax=ax,
-                color=sns.xkcd_rgb["pumpkin orange"])
-    return figure
-
-
-@register
-@title("Outcomes per week")
-@xlabel("Week")
-@ylabel("Count")
-def plot_outcomes_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort)
-    ax = figure.gca()
-    data = data.groupby([data["index"].dt.year,
-                         data["index"].dt.week]).sum().sort_index()
-    sns.barplot(x=data.index, y=data["count"], ax=ax,
-                color=sns.xkcd_rgb["pumpkin orange"])
+    ax = _plot_bars(data, ax)
     for i, label in enumerate(ax.xaxis.get_ticklabels()):
-        if i % 10 == 0:
+        if i % 12 == 0:
             label.set_visible(True)
         else:
             label.set_visible(False)
@@ -113,17 +76,59 @@ def plot_outcomes_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 
 @register
 @title("Outcomes per month")
-@xlabel("Month")
+@xlabel("Week")
 @ylabel("Count")
-def plot_outcomes_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort)
+def plot_outcomes_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
+    data = _prepare_data_2(cohort, "week")
     ax = figure.gca()
-    data = data.groupby([data["index"].dt.year,
-                         data["index"].dt.month]).sum().sort_index()
-    sns.barplot(x=data.index, y=data["count"], ax=ax, color=sns.xkcd_rgb["pumpkin orange"])
+    ax = _plot_bars(data, ax)
     for i, label in enumerate(ax.xaxis.get_ticklabels()):
-        if i % 4 == 0:
+        if i % 52 == 0:
             label.set_visible(True)
         else:
             label.set_visible(False)
+    return figure
+
+
+@register
+@title("Outcomes per month")
+@xlabel("Day")
+@ylabel("Count")
+def plot_outcomes_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
+    data = _prepare_data_2(cohort, "day")
+    ax = figure.gca()
+    ax = _plot_bars(data, ax)
+    return figure
+
+
+@register
+@title("Outcomes per month")
+@xlabel("Month")
+@ylabel("Count")
+def plot_outcomes_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
+    data = _prepare_data_2(cohort, "month")
+    ax = figure.gca()
+    ax = _plot_line(data, ax)
+    return figure
+
+
+@register
+@title("Outcomes per month")
+@xlabel("Week")
+@ylabel("Count")
+def plot_outcomes_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
+    data = _prepare_data_2(cohort, "week")
+    ax = figure.gca()
+    ax = _plot_line(data, ax)
+    return figure
+
+
+@register
+@title("Outcomes per month")
+@xlabel("Day")
+@ylabel("Count")
+def plot_outcomes_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
+    data = _prepare_data_2(cohort, "day")
+    ax = figure.gca()
+    ax = _plot_line(data, ax)
     return figure

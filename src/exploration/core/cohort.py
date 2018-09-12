@@ -111,7 +111,7 @@ class Cohort(object):
         """
         if missing_patients == "error":
             subjects = self.subjects.join(base_cohort.subjects, on="patientID",
-                                          how="right")
+                                          how="left")
             extra_subjects_count = subjects.where(col("gender").isNull()).count()
             if extra_subjects_count > 0:
                 raise ValueError(
