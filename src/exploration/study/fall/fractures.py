@@ -8,6 +8,7 @@ from pandas import DataFrame as pdDataFrame
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import logged, title, xlabel, ylabel
+from src.exploration.stats.grouper import agg
 from src.exploration.stats.time_distribution import _plot_bars, _set_start_as_index, \
     _time_unit
 
@@ -19,10 +20,9 @@ def register(f):
     return f
 
 
-@lru_cache(maxsize=32)
 def _admission_count(events) -> pdDataFrame:
-    return events.groupBy(["patientID", "start"]).count().toPandas().sort_values(
-        "start")
+    data = agg(events, frozenset(["patientID", "start"]), "count")
+    return data.sort_values("start")
 
 
 def _admission_count_per_start(cohort: Cohort) -> pdDataFrame:
@@ -39,16 +39,16 @@ def _plot_admission_per_time_unit(cohort: Cohort, time_unit: str, ax) -> Axes:
 
 
 @register
-@logged(logging.INFO, "X-CNAM", "Saving plot for fractures by site")
+@logged(logging.INFO, "Fractures count per body site")
 @xlabel("Fractures count")
-@ylabel("Site")
-@title("Distribution of fractures per site")
+@ylabel("Body site")
+@title("Fractures count per body site")
 def plot_fractures_by_site(figure: Figure, cohort: Cohort) -> Figure:
     axe = figure.gca()
-    fractures_site = (
-        cohort.events.groupBy("groupID").count().toPandas().sort_values("count",
-                                                                        ascending=True))
-    axe.barh(y=range(len(fractures_site)), width=fractures_site["count"].values,
+    fractures_site = agg(cohort.events,
+                         frozenset(["groupID"]),
+                         "count").sort_values("count(1)", ascending=True)
+    axe.barh(y=range(len(fractures_site)), width=fractures_site["count(1)"].values,
              tick_label=fractures_site.groupID.values,
              color=sns.xkcd_rgb["pumpkin orange"], )
     axe.grid(True, which="major", axis="x")
@@ -56,33 +56,35 @@ def plot_fractures_by_site(figure: Figure, cohort: Cohort) -> Figure:
 
 
 @register
-@logged(logging.INFO, "X-CNAM", "Saving plot of fractures per admission")
-@xlabel("Admissions count")
-@ylabel("Fractures count per admission")
-@title("Distribution of fractures per admission")
+@logged(logging.INFO, "Fractures count per admission")
+@ylabel("Admissions count")
+@xlabel("Fractures count")
+@title("Fractures count per admission")
 def plot_fractures_count_per_admission(figure: Figure, cohort: Cohort) -> Figure:
     ax = figure.gca()
     data = _admission_count(cohort.events)
-    sns.countplot(x="count", data=data, ax=ax)
+    data = data.groupby("count(1)").count().patientID
+    _plot_bars(data, ax)
     ax.grid(True, which="major", axis="y", linestyle='-')
     return figure
 
 
 @register
-@logged(logging.INFO, "X-CNAM", "Number of admission for fractures per patient")
+@logged(logging.INFO, "Number of admission per subject")
 @xlabel("Admissions count")
 @ylabel("Subjects count")
-@title("Number of admission for fractures per patient")
+@title("Number of admission per subject")
 def plot_admission_number_per_patient(figure: Figure, cohort: Cohort) -> Figure:
     ax = figure.gca()
-    data = _admission_count(cohort.events).groupby("patientID").count()
-    sns.countplot(data=data, x="start", ax=ax)
+    data = _admission_count(cohort.events)[["start", "patientID"]].groupby(
+        "patientID").count().reset_index().groupby("start").count().patientID
+    _plot_bars(data, ax)
     ax.grid(True, which="major", axis="y")
     return figure
 
 
 @register
-@logged(logging.INFO, "X-CNAM", "Number of admission for fractures per day")
+@logged(logging.INFO, "Number of admission for fractures per day")
 @xlabel("Day")
 @ylabel("Admission count")
 @title("Admission distribution per day")
@@ -94,7 +96,7 @@ def plot_admission_per_day(figure: Figure, cohort: Cohort) -> Figure:
 
 
 @register
-@logged(logging.INFO, "X-CNAM", "Number of admission for fractures per week")
+@logged(logging.INFO, "Number of admission for fractures per week")
 @xlabel("Week")
 @ylabel("Admission count")
 @title("Admission distribution per week")
@@ -106,7 +108,7 @@ def plot_admission_per_week(figure: Figure, cohort: Cohort) -> Figure:
 
 
 @register
-@logged(logging.INFO, "X-CNAM", "Number of admission for fractures per month")
+@logged(logging.INFO, "Number of admission for fractures per month")
 @xlabel("Month")
 @ylabel("Admission count")
 @title("Admission distribution per month")

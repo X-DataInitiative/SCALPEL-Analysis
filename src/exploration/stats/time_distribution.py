@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
@@ -7,6 +5,7 @@ from matplotlib.figure import Figure
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import xlabel, ylabel
+from src.exploration.stats.grouper import agg
 
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
@@ -43,9 +42,9 @@ def _time_unit(data: pd.Series, time_unit: str) -> pd.Series:
 
 
 def _prepare_data(cohort: Cohort, date_unit: str) -> pd.Series:
-    data = cohort.events.groupBy("start").count().toPandas().sort_values("start")
+    data = agg(cohort.events, frozenset(["start"]), "count").sort_values("start")
     data = _set_start_as_index(data)
-    return _time_unit(data["count"], date_unit)
+    return _time_unit(data["count(1)"], date_unit)
 
 
 def _plot_bars(data: pd.Series, ax: Axes) -> Axes:
@@ -92,7 +91,7 @@ def plot_events_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 def plot_events_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "day")
     ax = figure.gca()
-    ax = _plot_bars(data, ax)
+    _ = _plot_bars(data, ax)
     return figure
 
 
@@ -101,7 +100,7 @@ def plot_events_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 def plot_events_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "month")
     ax = figure.gca()
-    ax = _plot_line(data, ax)
+    _ = _plot_line(data, ax)
     return figure
 
 
@@ -110,7 +109,7 @@ def plot_events_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figur
 def plot_events_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "week")
     ax = figure.gca()
-    ax = _plot_line(data, ax)
+    _ = _plot_line(data, ax)
     return figure
 
 
@@ -119,5 +118,5 @@ def plot_events_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure
 def plot_events_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "day")
     ax = figure.gca()
-    ax = _plot_line(data, ax)
+    _ = _plot_line(data, ax)
     return figure

@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 from matplotlib.backends.backend_pdf import PdfPages
 
+from src.exploration.core.io import get_logger
+
 
 def attach_wrapper(obj, func=None):
     if func is None:
@@ -14,7 +16,7 @@ def attach_wrapper(obj, func=None):
     return func
 
 
-def logged(level, name=None, message=None):
+def logged(level, message=None):
     '''
     Add logging to a function.  level is the logging
     level, name is the logger name, and message is the
@@ -25,8 +27,7 @@ def logged(level, name=None, message=None):
     def decorate(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            logname = name if name else func.__module__
-            log = logging.getLogger(logname)
+            log = get_logger()
             logmsg = message if message else func.__name__
             log.log(level, logmsg)
             return func(*args, **kwargs)
