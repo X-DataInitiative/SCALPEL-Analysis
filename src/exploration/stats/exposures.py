@@ -23,14 +23,14 @@ def plot_exposures_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 
 
 @register
-@title("Exposures start per month")
+@title("Exposures start per week")
 def plot_exposures_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_week_as_bars(figure, cohort)
     return figure
 
 
 @register
-@title("Exposures start per month")
+@title("Exposures start per day")
 def plot_exposures_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_day_as_bars(figure, cohort)
     return figure
@@ -44,14 +44,14 @@ def plot_exposures_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Fi
 
 
 @register
-@title("Exposures start per month")
+@title("Exposures start per week")
 def plot_exposures_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_week_as_timeseries(figure, cohort)
     return figure
 
 
 @register
-@title("Exposures start per month")
+@title("Exposures start per day")
 def plot_exposures_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_day_as_timeseries(figure, cohort)
     return figure

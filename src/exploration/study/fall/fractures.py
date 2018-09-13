@@ -9,8 +9,9 @@ from pandas import DataFrame as pdDataFrame
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import logged, title, xlabel, ylabel
 from src.exploration.stats.grouper import agg
-from src.exploration.stats.time_distribution import _plot_bars, _set_start_as_index, \
+from src.exploration.stats.time_distribution import _set_start_as_index, \
     _time_unit
+from src.exploration.stats.plotter import _plot_bars
 
 registry = []
 

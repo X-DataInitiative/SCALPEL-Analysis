@@ -1,11 +1,10 @@
 import pandas as pd
-import seaborn as sns
-from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import xlabel, ylabel
 from src.exploration.stats.grouper import agg
+from src.exploration.stats.plotter import _plot_line, _plot_bars
 
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
@@ -45,17 +44,6 @@ def _prepare_data(cohort: Cohort, date_unit: str) -> pd.Series:
     data = agg(cohort.events, frozenset(["start"]), "count").sort_values("start")
     data = _set_start_as_index(data)
     return _time_unit(data["count(1)"], date_unit)
-
-
-def _plot_bars(data: pd.Series, ax: Axes) -> Axes:
-    ax.bar(range(len(data.index)), data.values, color=sns.xkcd_rgb["pumpkin orange"],
-           tick_label=data.index)
-    return ax
-
-
-def _plot_line(data: pd.Series, ax: Axes) -> Axes:
-    data.plot(kind="line", color=sns.xkcd_rgb["pumpkin orange"])
-    return ax
 
 
 @xlabel("Month")

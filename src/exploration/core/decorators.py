@@ -37,10 +37,10 @@ def logged(level, message=None):
     return decorate
 
 
-def saver(pdf):
+def saver(pdf, figsize=(8, 5)):
     def decorate(f):
         def save_result(*args, **kwargs):
-            fig = plt.figure()
+            fig = plt.figure(figsize=figsize)
             f(figure=fig, *args, **kwargs)
             plt.tight_layout()
             pdf.savefig(fig)
@@ -181,7 +181,7 @@ def millify(x, pos):
         return '{:.0f}{}'.format(x / 10 ** (3 * millidx), millnames[millidx])
 
 
-def save_plots(plot_functions, path, cohort):
+def save_plots(plot_functions, path, cohort, figsize=(8, 5)):
     with PdfPages(path) as pdf:
         for p in plot_functions:
-            saver(pdf)(p)(cohort=cohort)
+            saver(pdf, figsize=figsize)(p)(cohort=cohort)
