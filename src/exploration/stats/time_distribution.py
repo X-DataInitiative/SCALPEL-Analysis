@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
@@ -9,6 +11,11 @@ from src.exploration.core.decorators import xlabel, ylabel
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
     return data.set_index(pd.DatetimeIndex(data.start, tz="Europe/Paris", ambiguous=True,
+                                           name="index")).sort_index()
+
+
+def _set_end_as_index(data: pd.DataFrame) -> pd.DataFrame:
+    return data.set_index(pd.DatetimeIndex(data.end, tz="Europe/Paris", ambiguous=True,
                                            name="index")).sort_index()
 
 
@@ -37,9 +44,8 @@ def _time_unit(data: pd.Series, time_unit: str) -> pd.Series:
 
 def _prepare_data(cohort: Cohort, date_unit: str) -> pd.Series:
     data = cohort.events.groupBy("start").count().toPandas().sort_values("start")
-    data = data.set_index(pd.DatetimeIndex(data.start, tz="Europe/Paris", ambiguous=True,
-                                           name="index")).sort_index().reset_index()
-    return _time_unit(data, date_unit)
+    data = _set_start_as_index(data)
+    return _time_unit(data["count"], date_unit)
 
 
 def _plot_bars(data: pd.Series, ax: Axes) -> Axes:
