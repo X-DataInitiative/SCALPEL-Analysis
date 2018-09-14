@@ -7,6 +7,7 @@ from matplotlib import ticker
 from matplotlib.backends.backend_pdf import PdfPages
 
 from src.exploration.core.io import get_logger
+from src.exploration.stats.graph_utils import format_title
 
 
 def attach_wrapper(obj, func=None):
@@ -95,7 +96,6 @@ def show_labels(frequency):
         def wrapper(*args, **kwargs):
             ax = plt.gca()
             for i, label in enumerate(ax.xaxis.get_ticklabels()):
-                print(label)
                 if i % frequency == 0:
                     label.set_visible(True)
                 else:
@@ -107,12 +107,13 @@ def show_labels(frequency):
     return decorate
 
 
-def title(label):
+def title(header):
     def decorate(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
             ax = plt.gca()
-            ax.set_title(label)
+            formatted_title = format_title(header + ' of ' + args[1].characteristics)
+            ax.set_title(formatted_title)
             return f(*args, **kwargs)
 
         return wrapper

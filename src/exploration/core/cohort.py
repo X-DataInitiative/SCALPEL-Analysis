@@ -27,7 +27,7 @@ class Cohort(object):
             return Cohort(input["name"], input["name"],
                           read_data_frame(input["output_path"]))
         else:
-            return Cohort(input["name"], "Subjects_with_event_{}".format(input["name"]),
+            return Cohort(input["name"], "Subjects with event {}".format(input["name"]),
                           read_data_frame(input["population_path"]),
                           read_data_frame(input["output_path"]))
 
@@ -169,12 +169,12 @@ class Cohort(object):
 
 def _union(a: Cohort, b: Cohort) -> Cohort:
     if a.events is None or b.events is None:
-        return Cohort("{}_Or_{}".format(a.name, b.name),
-                      "{}_Or_{}".format(a.characteristics, b.characteristics),
+        return Cohort("{} Or {}".format(a.name, b.name),
+                      "{} Or {}".format(a.characteristics, b.characteristics),
                       a.subjects.union(b.subjects))
     else:
-        return Cohort("{}_Or_{}".format(a.name, b.name),
-                      "{}_Or_{}".format(a.characteristics, b.characteristics),
+        return Cohort("{} Or {}".format(a.name, b.name),
+                      "{} Or {}".format(a.characteristics, b.characteristics),
                       a.subjects.union(b.subjects), a.events.union(b.events))
 
 
@@ -185,7 +185,7 @@ def _intersection(a: Cohort, b: Cohort) -> Cohort:
     if a.events is not None:
         events = a.events.join(subjects_id, on="patientID", how='right')
     return Cohort(a.name,
-                  "{}_with_{}".format(a.characteristics, b.characteristics),
+                  "{} with {}".format(a.characteristics, b.characteristics),
                   subjects,
                   events)
 
@@ -197,6 +197,6 @@ def _difference(a: Cohort, b: Cohort) -> Cohort:
     if a.events is not None:
         events = a.events.join(subjects_id, on="patientID", how='right')
     return Cohort(a.name,
-                  "{}_without_{}".format(a.characteristics, b.characteristics),
+                  "{} without {}".format(a.characteristics, b.characteristics),
                   subjects,
                   events)

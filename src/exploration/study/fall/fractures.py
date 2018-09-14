@@ -1,5 +1,4 @@
 import logging
-from functools import lru_cache
 
 import seaborn as sns
 from matplotlib.axes import Axes
@@ -9,9 +8,9 @@ from pandas import DataFrame as pdDataFrame
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import logged, title, xlabel, ylabel
 from src.exploration.stats.grouper import agg
+from src.exploration.stats.plotter import plot_bars
 from src.exploration.stats.time_distribution import _set_start_as_index, \
     _time_unit
-from src.exploration.stats.plotter import _plot_bars
 
 registry = []
 
@@ -35,7 +34,7 @@ def _plot_admission_per_time_unit(cohort: Cohort, time_unit: str, ax) -> Axes:
     data = _admission_count_per_start(cohort)
     data = _set_start_as_index(data)
     data = _time_unit(data.patientID, time_unit)
-    _plot_bars(data, ax)
+    plot_bars(data, ax)
     return ax
 
 
@@ -65,7 +64,7 @@ def plot_fractures_count_per_admission(figure: Figure, cohort: Cohort) -> Figure
     ax = figure.gca()
     data = _admission_count(cohort.events)
     data = data.groupby("count(1)").count().patientID
-    _plot_bars(data, ax)
+    plot_bars(data, ax)
     ax.grid(True, which="major", axis="y", linestyle='-')
     return figure
 
@@ -79,7 +78,7 @@ def plot_admission_number_per_patient(figure: Figure, cohort: Cohort) -> Figure:
     ax = figure.gca()
     data = _admission_count(cohort.events)[["start", "patientID"]].groupby(
         "patientID").count().reset_index().groupby("start").count().patientID
-    _plot_bars(data, ax)
+    plot_bars(data, ax)
     ax.grid(True, which="major", axis="y")
     return figure
 

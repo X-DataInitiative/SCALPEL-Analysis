@@ -1,13 +1,18 @@
+"""
+A Plotter is a function that takes a pandas Series and transform it to the desired
+plot.
+"""
+
 import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 
 
-def _plot_line(data: pd.Series, ax: Axes) -> Axes:
+def plot_line(data: pd.Series, ax: Axes) -> Axes:
     data.plot(kind="line", color=sns.xkcd_rgb["pumpkin orange"])
     return ax
 
 
-def _plot_bars(data: pd.Series, ax: Axes) -> Axes:
-    data.plot(kind="bar", color=sns.xkcd_rgb["pumpkin orange"])
+def plot_bars(data: pd.Series, ax: Axes) -> Axes:
+    sns.barplot(x=data.index, y=data.values, color=sns.xkcd_rgb["pumpkin orange"])
     return ax

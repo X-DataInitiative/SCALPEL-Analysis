@@ -4,7 +4,7 @@ from matplotlib.figure import Figure
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import xlabel, ylabel
 from src.exploration.stats.grouper import agg
-from src.exploration.stats.plotter import _plot_line, _plot_bars
+from src.exploration.stats.plotter import plot_line, plot_bars
 
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
@@ -51,7 +51,8 @@ def _prepare_data(cohort: Cohort, date_unit: str) -> pd.Series:
 def plot_events_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "month")
     ax = figure.gca()
-    ax = _plot_bars(data, ax)
+    ax = plot_bars(data, ax)
+    ax.xaxis_date()
     for i, label in enumerate(ax.xaxis.get_ticklabels()):
         if i % 12 == 0:
             label.set_visible(True)
@@ -65,7 +66,7 @@ def plot_events_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 def plot_events_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "week")
     ax = figure.gca()
-    ax = _plot_bars(data, ax)
+    ax = plot_bars(data, ax)
     for i, label in enumerate(ax.xaxis.get_ticklabels()):
         if i % 52 == 0:
             label.set_visible(True)
@@ -79,7 +80,7 @@ def plot_events_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 def plot_events_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "day")
     ax = figure.gca()
-    _ = _plot_bars(data, ax)
+    _ = plot_bars(data, ax)
     return figure
 
 
@@ -88,7 +89,7 @@ def plot_events_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 def plot_events_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "month")
     ax = figure.gca()
-    _ = _plot_line(data, ax)
+    _ = plot_line(data, ax)
     return figure
 
 
@@ -97,7 +98,7 @@ def plot_events_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figur
 def plot_events_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "week")
     ax = figure.gca()
-    _ = _plot_line(data, ax)
+    _ = plot_line(data, ax)
     return figure
 
 
@@ -106,5 +107,5 @@ def plot_events_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure
 def plot_events_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     data = _prepare_data(cohort, "day")
     ax = figure.gca()
-    _ = _plot_line(data, ax)
+    _ = plot_line(data, ax)
     return figure

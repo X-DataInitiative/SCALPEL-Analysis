@@ -21,3 +21,18 @@ def _get_color_maps(max_age):
 BUCKET_INTEGER_TO_STR = _get_string_maps(250)
 BUCKET_STR_TO_COLOR = _get_color_maps(250)
 GENDER_MAPPING = {1: "Homme", 2: "Femme"}
+
+
+def format_title(string, every=64):
+    lines = []
+    length = len(string)
+    i = every
+    while i < length:
+        if string[i] == " ":
+            lines.append(string[i-every:i])
+        else:
+            lines.append(string[i-every:i] + "-")
+        i += every
+    else:
+        lines.append(string[i - every:])
+    return '\n'.join(lines)
