@@ -114,11 +114,15 @@ def title(header):
         @wraps(f)
         def wrapper(*args, **kwargs):
             ax = plt.gca()
+
             try:
-                formatted_title = format_title(header + ' of ' + args[1].characteristics)
+                cohort = args[1]
             except IndexError:
-                formatted_title = format_title(
-                    header + ' of ' + kwargs["cohort"].characteristics)
+                cohort = kwargs["cohort"]
+
+            formatted_title = format_title("{} {} of {}".format(cohort.name, header,
+                                                                cohort.characteristics))
+
             ax.set_title(formatted_title)
             return f(*args, **kwargs)
 
