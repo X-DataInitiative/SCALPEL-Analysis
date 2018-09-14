@@ -1,5 +1,6 @@
+from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import FrozenSet
+from typing import FrozenSet, Callable
 
 import pandas as pd
 from pyspark.sql import DataFrame
@@ -42,3 +43,10 @@ def event_start_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
 
 def event_group_id_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
     return agg(cohort.events, frozenset(["groupID"]), agg_func)
+
+
+class Aggregator(ABC):
+    @property
+    @abstractmethod
+    def agg(self) -> Callable:
+        pass

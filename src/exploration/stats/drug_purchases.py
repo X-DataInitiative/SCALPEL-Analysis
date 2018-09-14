@@ -2,7 +2,7 @@ from matplotlib.figure import Figure
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import title
-from src.exploration.stats.time_distribution import plot_events_per_month_as_bars, \
+from src.exploration.stats.event_time_distribution import plot_events_per_month_as_bars, \
     plot_events_per_week_as_bars, plot_events_per_day_as_bars, \
     plot_events_per_month_as_timeseries, plot_events_per_week_as_timeseries, \
     plot_events_per_day_as_timeseries
@@ -23,14 +23,14 @@ def plot_drug_purchases_per_month_as_bars(figure: Figure, cohort: Cohort) -> Fig
 
 
 @register
-@title("Drug Purchases per month")
+@title("Drug Purchases per week")
 def plot_drug_purchases_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_week_as_bars(figure, cohort)
     return figure
 
 
 @register
-@title("Drug Purchases per month")
+@title("Drug Purchases per day")
 def plot_drug_purchases_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_day_as_bars(figure, cohort)
     return figure
@@ -44,14 +44,14 @@ def plot_drug_purchases_per_month_as_timeseries(figure: Figure, cohort: Cohort) 
 
 
 @register
-@title("Drug Purchases per month")
+@title("Drug Purchases per week")
 def plot_drug_purchases_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_week_as_timeseries(figure, cohort)
     return figure
 
 
 @register
-@title("Drug Purchases per month")
+@title("Drug Purchases per day")
 def plot_drug_purchases_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
     plot_events_per_day_as_timeseries(figure, cohort)
     return figure

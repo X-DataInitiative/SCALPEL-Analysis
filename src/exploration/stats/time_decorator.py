@@ -1,12 +1,12 @@
+from abc import ABC, abstractmethod
+
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.ticker import IndexLocator
 
 from src.exploration.core.cohort import Cohort
-from src.exploration.core.decorators import xlabel, ylabel
-from src.exploration.stats.grouper import agg, event_start_agg
-from src.exploration.stats.plotter import plot_bars, plot_line
+from src.exploration.stats.plotter import plot_bars, plot_line, LinePlotter, BarPlotter
 
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
@@ -84,86 +84,99 @@ def _patch_date_axe(data: pd.Series, axe: Axes, time_unit: str) -> Axes:
         raise ValueError("Wrong date unit {}. day, month, week only.".format(time_unit))
 
 
-def _prepare_data(cohort: Cohort, date_unit: str) -> pd.Series:
-    data = agg(cohort.events, frozenset(["start"]), "count").sort_values("start")
-    data = _set_start_as_index(data)
-    return _time_unit(data["count(1)"], date_unit)
-
-
-def _plot_per_time_unit(data: pd.DataFrame, time_unit: str, ax, plotter,
-                        patch=True) -> Axes:
+def _plot_count_per_time_unit(data: pd.DataFrame, time_unit: str, ax, plotter,
+                              patch_date_axe=True) -> Axes:
     data = _set_start_as_index(data)
     data = _time_unit(data["count(1)"], time_unit)
     plotter(data, ax)
-    if patch:
+    if patch_date_axe:
         _patch_date_axe(data, ax, time_unit)
     return ax
 
 
-def _plot_concept_count_per_start_time(figure: Figure, time_unit: str, cohort: Cohort,
-                                       agg, plotter, patch=True) -> Figure:
+def _plot_concept_count_per_time_unit(figure: Figure, time_unit: str, cohort: Cohort,
+                                      agg, plotter, patch=True) -> Figure:
+    """Basic function"""
     data = agg(cohort, "count")
-    _plot_per_time_unit(data, time_unit, figure.gca(), plotter, patch)
+    _plot_count_per_time_unit(data, time_unit, figure.gca(), plotter, patch)
     return figure
 
 
 def _plot_concept_count_per_start_time_as_bars(figure: Figure, time_unit: str,
                                                cohort: Cohort,
                                                agg) -> Figure:
-    return _plot_concept_count_per_start_time(figure, time_unit, cohort, agg,
-                                              plot_bars)
+    """Gives the patch and the plotter"""
+    return _plot_concept_count_per_time_unit(figure, time_unit, cohort, agg,
+                                             plot_bars)
 
 
 def _plot_concept_count_per_start_time_as_timeseries(figure: Figure, time_unit: str,
                                                      cohort: Cohort,
                                                      agg) -> Figure:
-    return _plot_concept_count_per_start_time(figure, time_unit, cohort, agg,
-                                              plot_line, patch=False)
+    """Gives the patch and the plotter"""
+    return _plot_concept_count_per_time_unit(figure, time_unit, cohort, agg,
+                                             plot_line, patch=False)
 
 
-def _plot_events_per_time_unit_as_bars(figure: Figure, time_unit: str,
-                                       cohort: Cohort) -> Figure:
-    return _plot_concept_count_per_start_time_as_bars(figure, time_unit, cohort,
-                                                      event_start_agg)
+class TimeUnit(ABC):
+    @property
+    @abstractmethod
+    def time_unit(self) -> str:
+        pass
 
 
-def _plot_events_per_time_unit_as_timeseries(figure: Figure, time_unit: str,
-                                             cohort: Cohort) -> Figure:
-    return _plot_concept_count_per_start_time_as_timeseries(figure, time_unit, cohort,
-                                                            event_start_agg)
+class MonthUnit(TimeUnit):
+    @property
+    def time_unit(self) -> str: return "month"
 
 
-@xlabel("Month")
-@ylabel("Count")
-def plot_events_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    return _plot_events_per_time_unit_as_bars(figure, "month", cohort)
+class WeekUnit(TimeUnit):
+    @property
+    def time_unit(self): return "week"
 
 
-@xlabel("Week")
-@ylabel("Count")
-def plot_events_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    return _plot_events_per_time_unit_as_bars(figure, "week", cohort)
+class DayUnit(TimeUnit):
+    @property
+    def time_unit(self): return "day"
 
 
-@xlabel("Day")
-@ylabel("Count")
-def plot_events_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    return _plot_events_per_time_unit_as_bars(figure, "day", cohort)
+class TimedAggregatedCounterPlotter(ABC):
+    def __call__(self, figure: Figure, cohort: Cohort) -> Figure:
+        return _plot_concept_count_per_time_unit(figure, self.time_unit, cohort,
+                                                 self.agg, self.plotter, self.patch)
 
 
-@xlabel("Month")
-@ylabel("Count")
-def plot_events_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    return _plot_events_per_time_unit_as_timeseries(figure, "month", cohort)
+class MonthCounter(TimedAggregatedCounterPlotter, MonthUnit):
+    pass
 
 
-@xlabel("Week")
-@ylabel("Count")
-def plot_events_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    return _plot_events_per_time_unit_as_timeseries(figure, "week", cohort)
+class MonthCounterBar(MonthCounter, BarPlotter):
+    pass
 
 
-@xlabel("Day")
-@ylabel("Count")
-def plot_events_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    return _plot_events_per_time_unit_as_timeseries(figure, "day", cohort)
+class MonthCounterLine(MonthCounter, LinePlotter):
+    pass
+
+
+class WeekCounter(TimedAggregatedCounterPlotter, WeekUnit):
+    pass
+
+
+class WeekCounterBar(WeekCounter, BarPlotter):
+    pass
+
+
+class WeekCounterLine(WeekCounter, LinePlotter):
+    pass
+
+
+class DayCounter(TimedAggregatedCounterPlotter, DayUnit):
+    pass
+
+
+class DayCounterBar(DayCounter, BarPlotter):
+    pass
+
+
+class DayCounterLine(DayCounter, LinePlotter):
+    pass
