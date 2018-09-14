@@ -1,4 +1,5 @@
 
+
 \.idea/
 
 src/libs/
@@ -6,3 +7,5 @@ src/libs/
 test\.py
 
 *.pyc
+
+*.log

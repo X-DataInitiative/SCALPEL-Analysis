@@ -14,5 +14,6 @@ def plot_line(data: pd.Series, ax: Axes) -> Axes:
 
 
 def plot_bars(data: pd.Series, ax: Axes) -> Axes:
-    sns.barplot(x=data.index, y=data.values, color=sns.xkcd_rgb["pumpkin orange"])
+    ax.bar(x=range(len(data.values)), height=data.values)
+    #sns.barplot(x=data.index, y=data.values, color=sns.xkcd_rgb["pumpkin orange"])
     return ax

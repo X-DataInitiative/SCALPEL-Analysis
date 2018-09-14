@@ -9,6 +9,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from src.exploration.core.io import get_logger
 from src.exploration.stats.graph_utils import format_title
 
+import inspect
+
 
 def attach_wrapper(obj, func=None):
     if func is None:
@@ -112,7 +114,11 @@ def title(header):
         @wraps(f)
         def wrapper(*args, **kwargs):
             ax = plt.gca()
-            formatted_title = format_title(header + ' of ' + args[1].characteristics)
+            try:
+                formatted_title = format_title(header + ' of ' + args[1].characteristics)
+            except IndexError:
+                formatted_title = format_title(
+                    header + ' of ' + kwargs["cohort"].characteristics)
             ax.set_title(formatted_title)
             return f(*args, **kwargs)
 

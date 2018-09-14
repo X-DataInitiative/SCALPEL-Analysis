@@ -43,6 +43,7 @@ def plot_exposures_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Fi
     return figure
 
 
+
 @register
 @title("Exposures start per week")
 def plot_exposures_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
