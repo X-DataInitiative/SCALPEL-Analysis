@@ -5,7 +5,7 @@ from matplotlib.ticker import IndexLocator
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import xlabel, ylabel
-from src.exploration.stats.grouper import agg
+from src.exploration.stats.grouper import agg, event_start_agg
 from src.exploration.stats.plotter import plot_bars, plot_line
 
 
@@ -90,58 +90,80 @@ def _prepare_data(cohort: Cohort, date_unit: str) -> pd.Series:
     return _time_unit(data["count(1)"], date_unit)
 
 
+def _plot_per_time_unit(data: pd.DataFrame, time_unit: str, ax, plotter,
+                        patch=True) -> Axes:
+    data = _set_start_as_index(data)
+    data = _time_unit(data["count(1)"], time_unit)
+    plotter(data, ax)
+    if patch:
+        _patch_date_axe(data, ax, time_unit)
+    return ax
+
+
+def _plot_concept_count_per_start_time(figure: Figure, time_unit: str, cohort: Cohort,
+                                       agg, plotter, patch=True) -> Figure:
+    data = agg(cohort, "count")
+    _plot_per_time_unit(data, time_unit, figure.gca(), plotter, patch)
+    return figure
+
+
+def _plot_concept_count_per_start_time_as_bars(figure: Figure, time_unit: str,
+                                               cohort: Cohort,
+                                               agg) -> Figure:
+    return _plot_concept_count_per_start_time(figure, time_unit, cohort, agg,
+                                              plot_bars)
+
+
+def _plot_concept_count_per_start_time_as_timeseries(figure: Figure, time_unit: str,
+                                                     cohort: Cohort,
+                                                     agg) -> Figure:
+    return _plot_concept_count_per_start_time(figure, time_unit, cohort, agg,
+                                              plot_line, patch=False)
+
+
+def _plot_events_per_time_unit_as_bars(figure: Figure, time_unit: str,
+                                       cohort: Cohort) -> Figure:
+    return _plot_concept_count_per_start_time_as_bars(figure, time_unit, cohort,
+                                                      event_start_agg)
+
+
+def _plot_events_per_time_unit_as_timeseries(figure: Figure, time_unit: str,
+                                             cohort: Cohort) -> Figure:
+    return _plot_concept_count_per_start_time_as_timeseries(figure, time_unit, cohort,
+                                                            event_start_agg)
+
+
 @xlabel("Month")
 @ylabel("Count")
 def plot_events_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort, "month")
-    ax = figure.gca()
-    ax = plot_bars(data, ax)
-    _patch_date_axe(data, ax, "month")
-    return figure
+    return _plot_events_per_time_unit_as_bars(figure, "month", cohort)
 
 
 @xlabel("Week")
 @ylabel("Count")
 def plot_events_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort, "week")
-    ax = figure.gca()
-    ax = plot_bars(data, ax)
-    _patch_date_axe(data, ax, "week")
-    return figure
+    return _plot_events_per_time_unit_as_bars(figure, "week", cohort)
 
 
 @xlabel("Day")
 @ylabel("Count")
 def plot_events_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort, "day")
-    ax = figure.gca()
-    _ = plot_bars(data, ax)
-    _patch_date_axe(data, ax, "day")
-    return figure
+    return _plot_events_per_time_unit_as_bars(figure, "day", cohort)
 
 
 @xlabel("Month")
 @ylabel("Count")
 def plot_events_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort, "month")
-    ax = figure.gca()
-    _ = plot_line(data, ax)
-    return figure
+    return _plot_events_per_time_unit_as_timeseries(figure, "month", cohort)
 
 
 @xlabel("Week")
 @ylabel("Count")
 def plot_events_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort, "week")
-    ax = figure.gca()
-    _ = plot_line(data, ax)
-    return figure
+    return _plot_events_per_time_unit_as_timeseries(figure, "week", cohort)
 
 
 @xlabel("Day")
 @ylabel("Count")
 def plot_events_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    data = _prepare_data(cohort, "day")
-    ax = figure.gca()
-    _ = plot_line(data, ax)
-    return figure
+    return _plot_events_per_time_unit_as_timeseries(figure, "day", cohort)

@@ -4,12 +4,11 @@ plot.
 """
 
 import pandas as pd
-import seaborn as sns
 from matplotlib.axes import Axes
 
 
 def plot_line(data: pd.Series, ax: Axes) -> Axes:
-    data.plot(kind="line", color=sns.xkcd_rgb["pumpkin orange"])
+    ax.plot(data.index.to_pydatetime(), data.values)
     return ax
 
 

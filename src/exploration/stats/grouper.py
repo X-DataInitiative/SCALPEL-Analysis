@@ -4,6 +4,8 @@ from typing import FrozenSet
 import pandas as pd
 from pyspark.sql import DataFrame
 
+from src.exploration.core.cohort import Cohort
+
 
 @lru_cache(maxsize=128)
 def agg_by_col(df: DataFrame, group_by_cols: FrozenSet[str], agg_col: str,
@@ -32,3 +34,11 @@ def agg(df: DataFrame, group_by_cols: FrozenSet[str], agg_func: str) -> pd.DataF
     :return: pandas Dataframe.
     """
     return df.groupBy(list(group_by_cols)).agg({"*": agg_func}).toPandas()
+
+
+def event_start_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
+    return agg(cohort.events, frozenset(["start"]), agg_func).sort_values("start")
+
+
+def event_group_id_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
+    return agg(cohort.events, frozenset(["groupID"]), agg_func)

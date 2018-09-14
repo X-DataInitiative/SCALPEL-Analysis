@@ -18,40 +18,35 @@ def register(f):
 @register
 @title("Outcomes per month")
 def plot_outcomes_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    f = plot_events_per_month_as_bars(figure, cohort)
-    return f
+    return plot_events_per_month_as_bars(figure, cohort)
 
 
 @register
-@title("Outcomes per month")
+@title("Outcomes per week")
 def plot_outcomes_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    plot_events_per_week_as_bars(figure, cohort)
-    return figure
+    return plot_events_per_week_as_bars(figure, cohort)
 
 
 @register
-@title("Outcomes per month")
+@title("Outcomes per day")
 def plot_outcomes_per_day_as_bars(figure: Figure, cohort: Cohort) -> Figure:
-    plot_events_per_day_as_bars(figure, cohort)
-    return figure
+    return plot_events_per_day_as_bars(figure, cohort)
 
 
 @register
 @title("Outcomes per month")
 def plot_outcomes_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    plot_events_per_month_as_timeseries(figure, cohort)
-    return figure
+    return plot_events_per_month_as_timeseries(figure, cohort)
 
 
 @register
-@title("Outcomes per month")
+@title("Outcomes per week")
 def plot_outcomes_per_week_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    plot_events_per_week_as_timeseries(figure, cohort)
-    return figure
+    return plot_events_per_week_as_timeseries(figure, cohort)
 
 
 @register
 @title("Outcomes per month")
 def plot_outcomes_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
-    plot_events_per_day_as_timeseries(figure, cohort)
-    return figure
+    return plot_events_per_day_as_timeseries(figure, cohort)
+
