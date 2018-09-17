@@ -6,7 +6,7 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import IndexLocator
 
 from src.exploration.core.cohort import Cohort
-from src.exploration.stats.plotter import plot_bars, plot_line, LinePlotter, BarPlotter
+from src.exploration.stats.plotter import BarPlotter, LinePlotter
 
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
@@ -100,22 +100,6 @@ def _plot_concept_count_per_time_unit(figure: Figure, time_unit: str, cohort: Co
     data = agg(cohort, "count")
     _plot_count_per_time_unit(data, time_unit, figure.gca(), plotter, patch)
     return figure
-
-
-def _plot_concept_count_per_start_time_as_bars(figure: Figure, time_unit: str,
-                                               cohort: Cohort,
-                                               agg) -> Figure:
-    """Gives the patch and the plotter"""
-    return _plot_concept_count_per_time_unit(figure, time_unit, cohort, agg,
-                                             plot_bars)
-
-
-def _plot_concept_count_per_start_time_as_timeseries(figure: Figure, time_unit: str,
-                                                     cohort: Cohort,
-                                                     agg) -> Figure:
-    """Gives the patch and the plotter"""
-    return _plot_concept_count_per_time_unit(figure, time_unit, cohort, agg,
-                                             plot_line, patch=False)
 
 
 class TimeUnit(ABC):
