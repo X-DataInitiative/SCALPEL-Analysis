@@ -19,10 +19,10 @@ def _get_distinct(data, group_columns) -> pd.DataFrame:
 
 
 @register
-@xlabel("Event count")
-@ylabel("Subjects Counts")
-@title("distinct event per patient")
-def plot_unique_events_type_per_patient_distribution(figure: Figure, cohort: Cohort) -> Figure:
+@xlabel("Events count")
+@ylabel("Subjects count")
+@title("distinct events count per patient")
+def plot_unique_event_distribution_per_patient(figure: Figure, cohort: Cohort) -> Figure:
     group_columns = ["patientID", "value"]
     data = agg(cohort.events, frozenset(group_columns), "count")
     data = _get_distinct(data, group_columns)
@@ -31,3 +31,13 @@ def plot_unique_events_type_per_patient_distribution(figure: Figure, cohort: Coh
     return figure
 
 
+@register
+@xlabel("Subjects count")
+@ylabel("Events count")
+@title("distinct patients count per event")
+def plot_patient_distribution_per_unique_event(figure: Figure, cohort: Cohort) -> Figure:
+    group_columns = ["patientID", "value"]
+    data = _get_distinct(cohort.events, group_columns)
+    data = agg(data[group_columns], frozenset(["value"]), "count")
+    sns.barplot(x=data.value.values, y=data["count(1)"].values)
+    return figure
