@@ -120,7 +120,7 @@ def title(header):
             except IndexError:
                 cohort = kwargs["cohort"]
 
-            formatted_title = format_title("{} {} of {}".format(cohort.name, header,
+            formatted_title = format_title("{} among {}".format(header,
                                                                 cohort.characteristics))
 
             ax.set_title(formatted_title)
