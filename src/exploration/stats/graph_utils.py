@@ -28,7 +28,7 @@ def format_title(string, every=64):
     length = len(string)
     i = every
     while i < length:
-        if string[i] == " ":
+        if string[i-1] == " ":
             lines.append(string[i-every:i])
         else:
             lines.append(string[i-every:i] + "-")

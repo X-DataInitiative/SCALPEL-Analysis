@@ -27,7 +27,7 @@ class Cohort(object):
             return Cohort(input["name"], input["name"],
                           read_data_frame(input["output_path"]))
         else:
-            return Cohort(input["name"], "Subjects with event {}".format(input["name"]),
+            return Cohort(input["name"], "subjects with event {}".format(input["name"]),
                           read_data_frame(input["population_path"]),
                           read_data_frame(input["output_path"]))
 
