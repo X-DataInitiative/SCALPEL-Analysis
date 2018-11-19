@@ -2,6 +2,8 @@ from datetime import datetime
 
 import pandas as pd
 from pyspark.sql.functions import from_unixtime, col
+from pyspark.sql.types import StructType, StructField, IntegerType, StringType, \
+    TimestampType, DateType, ArrayType
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.util import data_frame_equality
@@ -214,10 +216,34 @@ class TestCohort(PySparkTest):
 
         input.add_age_information(datetime(2013, 1, 1))
         result = input
-        expected_subjects, _ = self.create_spark_df(
-            {"age": [19, 20]
-             })
+        expected_subjects, _ = self.create_spark_df({"age": [19, 20]})
         expected = Cohort("liberal_fractures", "liberal_fractures",
                           expected_subjects, None)
         self.assertTrue(data_frame_equality(result.subjects.select("age"),
                                             expected.subjects.select("age")))
+
+    def test_is_duration_events(self):
+        schema = StructType([
+            StructField("patientID", IntegerType(), True),
+            StructField("start", TimestampType(), True),
+            StructField("end", TimestampType(), True)])
+
+        patients_pd = pd.DataFrame({"patientID": [1, 2, 3]})
+        patients = self.spark.createDataFrame(patients_pd)
+
+        cohort1 = Cohort("patients", "patients", patients, None)
+        self.assertFalse(cohort1.is_duration_events())
+
+        data = [(1, datetime(1993, 10, 9), datetime(1993, 10, 9))]
+
+        events = self.spark.createDataFrame(data=data, schema=schema)
+
+        cohort2 = Cohort("patients", "patients", patients, events)
+        self.assertTrue(cohort2.is_duration_events())
+
+        data = [(1, datetime(1993, 10, 9), None), (2, datetime(1993, 10, 9), None)]
+
+        events = self.spark.createDataFrame(data=data, schema=schema)
+
+        cohort2 = Cohort("patients", "patients", patients, events)
+        self.assertFalse(cohort2.is_duration_events())

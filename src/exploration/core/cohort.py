@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Iterable, Dict
 
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, months_between, floor, lit
+from pyspark.sql.functions import col, months_between, floor, lit, datediff
 
 from src.exploration.core.io import read_data_frame, get_logger
 from src.exploration.core.util import data_frame_equality
@@ -83,15 +83,6 @@ class Cohort(object):
             return ("Events are {}.".format(self.name) +
                     "Events contain only {}".format(self.characteristics))
 
-    def union(self, other: 'Cohort') -> 'Cohort':
-        return _union(self, other)
-
-    def intersection(self, other: 'Cohort') -> 'Cohort':
-        return _intersection(self, other)
-
-    def difference(self, other: 'Cohort') -> 'Cohort':
-        return _difference(self, other)
-
     def has_subject_information(self) -> bool:
         """Returns true if this cohort is the Base Cohort. The base population contains
         extra columns specifically birthDate, deathDate and gender"""
@@ -143,6 +134,38 @@ class Cohort(object):
             months_between(lit(date), col("birthDate")) / 12)).withColumn(
             "ageBucket", floor(col("age") / 5)
         )
+
+    def is_duration_events(self) -> bool:
+        """Returns true if the Events have a defined start and end for every line in
+        events dataframe.
+        :return: Boolean.
+        """
+        if self.events is None:
+            return False
+        else:
+            return self.events.where(
+                self.events.end.isNull() | self.events.start.isNull()).count() == 0
+
+    def add_duration_information(self) -> 'Cohort':
+        """Adds a column with duration in days between start and end for the Events
+        DataFrame.
+        :return: self with duration column added to events"""
+        if self.is_duration_events():
+            self._events = self.events.withColumn("duration",
+                                                  datediff(col("end"), col("start")))
+            return self
+        else:
+            raise ValueError("This Cohort is not a duration events cohort",
+                             " please check is_duration_events method")
+
+    def union(self, other: 'Cohort') -> 'Cohort':
+        return _union(self, other)
+
+    def intersection(self, other: 'Cohort') -> 'Cohort':
+        return _intersection(self, other)
+
+    def difference(self, other: 'Cohort') -> 'Cohort':
+        return _difference(self, other)
 
     @staticmethod
     def union_all(cohorts: Iterable['Cohort']) -> 'Cohort':
