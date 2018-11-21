@@ -4,7 +4,7 @@ from matplotlib.ticker import IndexLocator
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import title, xlabel, ylabel
-from src.exploration.stats.grouper import agg, event_duration_agg
+from src.exploration.stats.grouper import agg, event_duration_agg, agg_by_col
 
 registry = []
 
@@ -60,7 +60,7 @@ def plot_duration_distribution_per_month_as_bar(figure: Figure, cohort: Cohort) 
 def plot_mean_duration_per_value(figure: Figure, cohort: Cohort) -> Figure:
     assert cohort.is_duration_events()
 
-    df = agg(cohort.events, frozenset(["value"]), "mean").sort_values("value")
+    df = agg_by_col(cohort.events, frozenset(["value"]), "duration", "mean").sort_values("value")
     ax = figure.gca()
     ax.barh(y=range(len(df.value)), width=df["avg(duration)"].values)
     ax.set_yticklabels(df.value.values)

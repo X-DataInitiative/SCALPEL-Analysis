@@ -34,10 +34,7 @@ def agg(df: DataFrame, group_by_cols: FrozenSet[str], agg_func: str) -> pd.DataF
     :param agg_func: the name of the aggregation function.
     :return: pandas Dataframe.
     """
-    if agg_func == 'mean':
-        return df.groupBy(list(group_by_cols)).mean().toPandas()
-    else:
-        return df.groupBy(list(group_by_cols)).agg({"*": agg_func}).toPandas()
+    return df.groupBy(list(group_by_cols)).agg({"*": agg_func}).toPandas()
 
 
 def event_start_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
