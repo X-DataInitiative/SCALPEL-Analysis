@@ -1,6 +1,6 @@
 import numpy as np
-import seaborn as sns
 from matplotlib.figure import Figure
+from matplotlib.ticker import IndexLocator
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import title, xlabel, ylabel
@@ -17,21 +17,27 @@ def register(f):
 @register
 @xlabel("Number of Days")
 @ylabel("Count (log)")
-@title("distribution per month")
+@title("duration distribution")
 def plot_duration_distribution_per_day_as_line(figure: Figure, cohort: Cohort) -> Figure:
     assert cohort.is_duration_events()
 
     df = event_duration_agg(cohort, "count").sort_values("duration")
     ax = figure.gca()
-    ax.plot(df.duration, df["count(1)"], color="salmon")
+    ax.plot(df.duration, df["count(1)"])
     ax.set_yscale('log')
+
+    major = IndexLocator(365, +0.0)
+    minor = IndexLocator(30, +0.0)
+    ax.xaxis.set_minor_locator(minor)
+    ax.xaxis.set_major_locator(major)
+    ax.grid(True, which="major", axis="x")
     return figure
 
 
 @register
-@ylabel("Number of Months")
-@xlabel("Count")
-@title("distribution per month")
+@ylabel("Count")
+@xlabel("Duration in months")
+@title("duration distribution")
 def plot_duration_distribution_per_month_as_bar(figure: Figure, cohort: Cohort) -> Figure:
     assert cohort.is_duration_events()
 
@@ -40,7 +46,10 @@ def plot_duration_distribution_per_month_as_bar(figure: Figure, cohort: Cohort) 
     df.duration = df.duration.astype('int32')
     df = df.groupby("duration").sum().reset_index()
     ax = figure.gca()
-    sns.barplot(data=df, x="duration", y="count(1)", color="salmon", ax=ax)
+    ax.bar(x=range(len(df)), height=df["count(1)"].values)
+    ax.set_xticklabels(df.duration.values)
+    ax.set_xticks(range(len(df)))
+
     return figure
 
 
