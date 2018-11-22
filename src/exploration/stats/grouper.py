@@ -45,6 +45,10 @@ def event_group_id_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
     return agg(cohort.events, frozenset(["groupID"]), agg_func)
 
 
+def event_duration_agg(cohort: Cohort, agg_func: str)-> pd.DataFrame:
+    return agg(cohort.events, frozenset(["duration"]), agg_func)
+
+
 class Aggregator(ABC):
     @property
     @abstractmethod
