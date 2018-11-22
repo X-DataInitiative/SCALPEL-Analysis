@@ -207,11 +207,11 @@ class TestCohort(PySparkTest):
                         and input3.events.count() == 1)
 
     def test_add_age_information(self):
-        subjects, _ = self.create_spark_df({"birthTimestamp": [datetime(1993, 10, 9),
+        subjects, df = self.create_spark_df({"birthDate": [datetime(1993, 10, 9),
                                                                datetime(1992, 3, 14)]})
+
         input = Cohort("liberal_fractures", "liberal_fractures",
-                       subjects.withColumn("birthDate",
-                                           from_unixtime(col("birthTimestamp") / 1e9)),
+                       subjects,
                        None)
 
         input.add_age_information(datetime(2013, 1, 1))
