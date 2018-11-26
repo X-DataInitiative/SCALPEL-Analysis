@@ -30,8 +30,4 @@ jobs:
           command: |
             eval "$(pyenv init -)"
             pyenv local 3.5.3
-            python -m unittest tests/exploration/core/*test*
-
-      - store_artifacts:
-          path: test-reports
-          destination: test-reports
+            python -m nose --with-coverage --cover-package=src/exploration/core
