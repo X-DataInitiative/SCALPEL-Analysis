@@ -30,4 +30,10 @@ jobs:
           command: |
             eval "$(pyenv init -)"
             pyenv local 3.5.3
-            python -m nose --with-coverage --cover-package=src/exploration/core
+            cat /dev/null | python -m nose --with-coverage --cover-package=src/exploration/core
+
+      - run:
+          name: Run coverage
+          command: |
+            eval "$(pyenv init -)"
+            cat /dev/null | codecov -t 7f9c7390-37df-46bc-8d25-08edd04377d3
