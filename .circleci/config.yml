@@ -1,50 +1,36 @@
-# Python CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-python/ for more details
-#
 version: 2
 jobs:
   build:
     docker:
-      # specify the version you desire here
-      # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
-      - image: godatadriven/pyspark
+      - image: ysebiat/pyspark231:python35
 
     working_directory: ~/repo
 
     steps:
       - checkout
 
-      # Download and cache dependencies
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "requirements.txt" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
 
       - run:
-          name: install dependencies
+          name: Install dependencies
           command: |
-            conda create -y --name exploration python=3.5.2
-            source activate exploration
+            eval "$(pyenv init -)"
+            pyenv local 3.5.3
             pip install -r requirements.txt
 
       - save_cache:
           paths:
-            - ./venv
+            - /root/.pyenv/versions/3.5.3/lib/python3.5/site-packages
           key: v1-dependencies-{{ checksum "requirements.txt" }}
 
-      # run tests!
-      # this example uses Django's built-in test-runner
-      # other common Python testing frameworks include pytest and nose
-      # https://pytest.org
-      # https://nose.readthedocs.io
       - run:
           name: run tests
           command: |
-            source activate exploration
-            cd tests
-            nosetests
+            eval "$(pyenv init -)"
+            pyenv local 3.5.3
+            python -m unittest tests/exploration/core/*test*
 
       - store_artifacts:
           path: test-reports

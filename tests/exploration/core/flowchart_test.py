@@ -69,7 +69,3 @@ class TestFlowchart(PySparkTest):
         self.assertSetEqual(set(result.cohorts.keys()), {"liberal_fractures",
                                                          "hospit_fractures",
                                                          "outcome"})
-
-
-if __name__ == '__main__':
-    unittest.main()
