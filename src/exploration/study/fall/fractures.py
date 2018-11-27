@@ -7,8 +7,14 @@ from pandas import DataFrame as pdDataFrame
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import logged, title, xlabel, ylabel
 from src.exploration.stats.grouper import Aggregator, agg, event_group_id_agg
-from src.exploration.stats.time_decorator import DayCounterBar, DayCounterLine, \
-    MonthCounterBar, MonthCounterLine, WeekCounterBar, WeekCounterLine
+from src.exploration.stats.time_decorator import (
+    DayCounterBar,
+    DayCounterLine,
+    MonthCounterBar,
+    MonthCounterLine,
+    WeekCounterBar,
+    WeekCounterLine,
+)
 
 registry = []
 
@@ -24,7 +30,8 @@ def _admission_count(cohort: Cohort) -> pdDataFrame:
 
 def admission_agg(cohort: Cohort, agg_func: str):
     return agg(cohort.events, frozenset(["patientID", "start"]), agg_func).sort_values(
-        "start")
+        "start"
+    )
 
 
 @register
@@ -34,10 +41,14 @@ def admission_agg(cohort: Cohort, agg_func: str):
 @title("Fractures count per body site")
 def plot_fractures_by_site(figure: Figure, cohort: Cohort) -> Figure:
     axe = figure.gca()
-    fractures_site = event_group_id_agg(cohort, "count").sort_values("count(1)",
-                                                                     ascending=True)
-    axe.barh(y=range(len(fractures_site)), width=fractures_site["count(1)"].values,
-             tick_label=fractures_site.groupID.values)
+    fractures_site = event_group_id_agg(cohort, "count").sort_values(
+        "count(1)", ascending=True
+    )
+    axe.barh(
+        y=range(len(fractures_site)),
+        width=fractures_site["count(1)"].values,
+        tick_label=fractures_site.groupID.values,
+    )
     return figure
 
 
@@ -51,7 +62,7 @@ def plot_fractures_count_per_admission(figure: Figure, cohort: Cohort) -> Figure
     data = _admission_count(cohort)
     data = data.groupby("count(1)").count().patientID
     sns.barplot(x=data.index.values, y=data.values)
-    ax.grid(True, which="major", axis="y", linestyle='-')
+    ax.grid(True, which="major", axis="y", linestyle="-")
     return figure
 
 
@@ -62,8 +73,15 @@ def plot_fractures_count_per_admission(figure: Figure, cohort: Cohort) -> Figure
 @title("Number of admission per subject")
 def plot_admission_number_per_patient(figure: Figure, cohort: Cohort) -> Figure:
     ax = figure.gca()
-    data = _admission_count(cohort)[["start", "patientID"]].groupby(
-        "patientID").count().reset_index().groupby("start").count().patientID
+    data = (
+        _admission_count(cohort)[["start", "patientID"]]
+        .groupby("patientID")
+        .count()
+        .reset_index()
+        .groupby("start")
+        .count()
+        .patientID
+    )
     sns.barplot(x=data.index.values, y=data.values)
     ax.grid(True, which="major", axis="y")
     return figure
@@ -95,6 +113,7 @@ def plot_admission_per_week_as_bars(figure: Figure, cohort: Cohort) -> Figure:
 def plot_admission_per_month_as_bars(figure: Figure, cohort: Cohort) -> Figure:
     return MonthCounterBarAdmission()(figure, cohort)
 
+
 @register
 @logged(logging.INFO, "Number of admission for fractures per day")
 @xlabel("Day")
@@ -124,7 +143,8 @@ def plot_admission_per_month_as_timeseries(figure: Figure, cohort: Cohort) -> Fi
 
 class AdmissionStartAgg(Aggregator):
     @property
-    def agg(self): return admission_agg
+    def agg(self):
+        return admission_agg
 
 
 class MonthCounterBarAdmission(MonthCounterBar, AdmissionStartAgg):

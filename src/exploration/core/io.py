@@ -1,6 +1,6 @@
-from logging import Logger
 import logging
 import sys
+from logging import Logger
 
 from pyspark.sql import DataFrame, SQLContext, SparkSession
 
@@ -10,8 +10,9 @@ def get_logger() -> Logger:
     if len(logger.handlers) == 0:
         logger.handlers.clear()
 
-        formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-s : %(message)s',
-                                      datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter(
+            fmt="%(asctime)s %(levelname)-s : %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
         screen_handler = logging.StreamHandler(stream=sys.stdout)
         screen_handler.setFormatter(formatter)
         logger.setLevel(logging.DEBUG)
@@ -31,5 +32,4 @@ def get_spark_context():
 
 
 def read_data_frame(filepath: str) -> DataFrame:
-    return (get_spark_context()
-            .read.parquet(filepath).cache())
+    return get_spark_context().read.parquet(filepath).cache()

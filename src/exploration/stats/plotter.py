@@ -32,20 +32,20 @@ class Plotter(ABC):
 
 
 class LinePlotter(Plotter):
-
     @property
     def plotter(self) -> Callable:
         return plot_line
 
     @property
-    def patch(self): return False
+    def patch(self):
+        return False
 
 
 class BarPlotter(Plotter):
-
     @property
     def plotter(self) -> Callable:
         return plot_bars
 
     @property
-    def patch(self): return True
+    def patch(self):
+        return True

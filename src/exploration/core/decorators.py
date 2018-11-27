@@ -1,4 +1,3 @@
-import logging
 import math
 from functools import partial, wraps
 
@@ -9,8 +8,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from src.exploration.core.io import get_logger
 from src.exploration.stats.graph_utils import format_title
 
-import inspect
-
 
 def attach_wrapper(obj, func=None):
     if func is None:
@@ -20,12 +17,12 @@ def attach_wrapper(obj, func=None):
 
 
 def logged(level, message=None):
-    '''
+    """
     Add logging to a function.  level is the logging
     level, name is the logger name, and message is the
     log message.  If name and message aren't specified,
     they default to the function's module and name.
-    '''
+    """
 
     def decorate(func):
         @wraps(func)
@@ -120,8 +117,9 @@ def title(header):
             except IndexError:
                 cohort = kwargs["cohort"]
 
-            formatted_title = format_title("{} among {}".format(header,
-                                                                cohort.characteristics))
+            formatted_title = format_title(
+                "{} among {}".format(header, cohort.characteristics)
+            )
 
             ax.set_title(formatted_title)
             return f(*args, **kwargs)
@@ -143,10 +141,10 @@ def percentage_y(total, y_limit):
             ax.yaxis.tick_right()
 
             # Also switch the labels over
-            ax.yaxis.set_label_position('right')
-            ax2.yaxis.set_label_position('left')
+            ax.yaxis.set_label_position("right")
+            ax2.yaxis.set_label_position("left")
 
-            ax2.set_ylabel('[%]')
+            ax2.set_ylabel("[%]")
 
             # Use a LinearLocator to ensure the correct number of ticks
             ax.yaxis.set_major_locator(ticker.LinearLocator(11))
@@ -177,19 +175,23 @@ def percentage_y(total, y_limit):
     return decorate
 
 
-millnames = ['', ' K', ' M', ' Mi', ' Tr']
+millnames = ["", " K", " M", " Mi", " Tr"]
 
 
 @ticker.FuncFormatter
 def millify(x, pos):
     x = float(x)
-    millidx = max(0, min(len(millnames) - 1,
-                         int(math.floor(0 if x == 0 else math.log10(abs(x)) / 3))))
+    millidx = max(
+        0,
+        min(
+            len(millnames) - 1, int(math.floor(0 if x == 0 else math.log10(abs(x)) / 3))
+        ),
+    )
 
     if millidx > 1:
-        return '{:.1f}{}'.format(x / 10 ** (3 * millidx), millnames[millidx])
+        return "{:.1f}{}".format(x / 10 ** (3 * millidx), millnames[millidx])
     else:
-        return '{:.0f}{}'.format(x / 10 ** (3 * millidx), millnames[millidx])
+        return "{:.0f}{}".format(x / 10 ** (3 * millidx), millnames[millidx])
 
 
 def save_plots(plot_functions, path, cohort, figsize=(8, 5)):

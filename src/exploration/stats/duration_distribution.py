@@ -4,7 +4,7 @@ from matplotlib.ticker import IndexLocator
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.core.decorators import title, xlabel, ylabel
-from src.exploration.stats.grouper import agg, event_duration_agg, agg_by_col
+from src.exploration.stats.grouper import agg_by_col, event_duration_agg
 
 registry = []
 
@@ -18,13 +18,15 @@ def register(f):
 @xlabel("Number of Days")
 @ylabel("Count (log)")
 @title("duration distribution")
-def plot_duration_distribution_per_day_as_line(figure: Figure, cohort: Cohort) -> Figure:
+def plot_duration_distribution_per_day_as_line(
+    figure: Figure, cohort: Cohort
+) -> Figure:
     assert cohort.is_duration_events()
 
     df = event_duration_agg(cohort, "count").sort_values("duration")
     ax = figure.gca()
     ax.plot(df.duration, df["count(1)"])
-    ax.set_yscale('log')
+    ax.set_yscale("log")
 
     major = IndexLocator(365, +0.0)
     minor = IndexLocator(30, +0.0)
@@ -38,12 +40,14 @@ def plot_duration_distribution_per_day_as_line(figure: Figure, cohort: Cohort) -
 @ylabel("Count")
 @xlabel("Duration in months")
 @title("duration distribution")
-def plot_duration_distribution_per_month_as_bar(figure: Figure, cohort: Cohort) -> Figure:
+def plot_duration_distribution_per_month_as_bar(
+    figure: Figure, cohort: Cohort
+) -> Figure:
     assert cohort.is_duration_events()
 
     df = event_duration_agg(cohort, "count").sort_values("duration")
     df.duration = np.ceil(df.duration / 30)
-    df.duration = df.duration.astype('int32')
+    df.duration = df.duration.astype("int32")
     df = df.groupby("duration").sum().reset_index()
     ax = figure.gca()
     ax.bar(x=range(len(df)), height=df["count(1)"].values)
@@ -60,7 +64,9 @@ def plot_duration_distribution_per_month_as_bar(figure: Figure, cohort: Cohort) 
 def plot_mean_duration_per_value(figure: Figure, cohort: Cohort) -> Figure:
     assert cohort.is_duration_events()
 
-    df = agg_by_col(cohort.events, frozenset(["value"]), "duration", "mean").sort_values("value")
+    df = agg_by_col(
+        cohort.events, frozenset(["value"]), "duration", "mean"
+    ).sort_values("value")
     ax = figure.gca()
     ax.barh(y=range(len(df.value)), width=df["avg(duration)"].values)
     ax.set_yticklabels(df.value.values)

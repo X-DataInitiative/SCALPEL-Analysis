@@ -1,9 +1,10 @@
 import copy
 import json
-from typing import Set, Tuple
+from typing import Set, Tuple, Dict, Iterable
 
-from .cohort import *
-
+from src.exploration.core.cohort import Cohort
+from src.exploration.core.io import get_logger
+from src.exploration.core.util import fold_right
 
 ALLOWED_OPERATIONS = frozenset(["union", "intersection", "difference"])
 
@@ -16,21 +17,24 @@ class Metadata:
         self.cohorts = cohorts
 
     @staticmethod
-    def from_json(input: str) -> 'Metadata':
+    def from_json(input: str) -> "Metadata":
         metadata_json = json.loads(input)
         operations = metadata_json["operations"]
         return Metadata(
-            {operation["name"]: Cohort.from_json(operation) for operation in operations})
+            {operation["name"]: Cohort.from_json(operation) for operation in operations}
+        )
 
     def get_from_description(self, description: Dict) -> Cohort:
         # TODO : this should be a method called from cohortz
         operation_type = description["type"]  # type: str
         if operation_type.lower() not in ALLOWED_OPERATIONS:
             raise KeyError(
-                "{} not permitted. Only available operations: {}".format(operation_type,
-                                                                        ALLOWED_OPERATIONS))
+                "{} not permitted. Only available operations: {}".format(
+                    operation_type, ALLOWED_OPERATIONS
+                )
+            )
         else:
-            parents = [self.get(parent) for parent in description['parents']]
+            parents = [self.get(parent) for parent in description["parents"]]
             new_cohort = Cohort.union_all(parents)
             new_cohort.name = description["name"]
             return new_cohort
@@ -46,20 +50,21 @@ class Metadata:
             return self.cohorts[cohort_name]
         else:
             raise KeyError(
-                "Cohort {} do not exist in current Metadata".format(cohort_name))
+                "Cohort {} do not exist in current Metadata".format(cohort_name)
+            )
 
-    def add_cohort(self, name: str, cohort: Cohort) -> 'Metadata':
+    def add_cohort(self, name: str, cohort: Cohort) -> "Metadata":
         new_metadata = copy.copy(self)
         new_metadata.cohorts[name] = cohort
         return new_metadata
 
-    def union(self, other: 'Metadata') -> 'Metadata':
+    def union(self, other: "Metadata") -> "Metadata":
         return _union(self, other)
 
-    def difference(self, other: 'Metadata') -> 'Metadata':
+    def difference(self, other: "Metadata") -> "Metadata":
         return _difference(self, other)
 
-    def intersection(self, other: 'Metadata') -> 'Metadata':
+    def intersection(self, other: "Metadata") -> "Metadata":
         return _intersection(self, other)
 
     def _find_base_cohort(self) -> Tuple[str, Cohort]:
@@ -76,7 +81,9 @@ class Metadata:
         else:
             return base_cohort_name, base_cohort
 
-    def _add_subjects_information(self, missing_patients, base_cohort_name, base_cohort) -> None:
+    def _add_subjects_information(
+        self, missing_patients, base_cohort_name, base_cohort
+    ) -> None:
         for name, cohort in self.cohorts.items():
             if name != base_cohort_name and not cohort.has_subject_information():
                 cohort.add_subject_information(base_cohort, missing_patients)
@@ -98,11 +105,11 @@ class Metadata:
         self._add_subjects_information(missing_patients, base_cohort_name, base_cohort)
 
     @staticmethod
-    def union_all(metadatas: Iterable['Metadata']) -> 'Metadata':
+    def union_all(metadatas: Iterable["Metadata"]) -> "Metadata":
         return fold_right(_union, metadatas)
 
     @staticmethod
-    def intersect_all(metadatas: Iterable['Metadata']) -> 'Metadata':
+    def intersect_all(metadatas: Iterable["Metadata"]) -> "Metadata":
         return fold_right(_intersection, metadatas)
 
     def __iter__(self):
