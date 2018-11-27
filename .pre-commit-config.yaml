@@ -22,7 +22,6 @@ repos:
     hooks:
     - id: coverage
       name: coverage
-      entry: bash -ec 'coverage report --fail-under=50'
+      entry: bash -ec 'coverage report --fail-under=100'
       language: system
       files: \.py$
-
