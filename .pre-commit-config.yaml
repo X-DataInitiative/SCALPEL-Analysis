@@ -15,6 +15,14 @@ repos:
     hooks:
     - id: nosetests
       name: nosetests
-      entry: bash -ec 'nosetests'
+      entry: bash -ec 'nosetests --with-coverage --cover-package=src/exploration/core'
       language: system
       files: \.py$
+-   repo: local
+    hooks:
+    - id: coverage
+      name: coverage
+      entry: bash -ec 'coverage report --fail-under=50'
+      language: system
+      files: \.py$
+
