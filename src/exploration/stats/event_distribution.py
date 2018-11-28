@@ -1,10 +1,16 @@
 from matplotlib.figure import Figure
 
 from src.exploration.core.cohort import Cohort
-from src.exploration.core.decorators import xlabel, ylabel, title
+from src.exploration.core.decorators import title, xlabel, ylabel
 from src.exploration.stats.grouper import Aggregator, event_start_agg
-from src.exploration.stats.time_decorator import DayCounterBar, DayCounterLine, \
-    MonthCounterBar, MonthCounterLine, WeekCounterBar, WeekCounterLine
+from src.exploration.stats.time_decorator import (
+    DayCounterBar,
+    DayCounterLine,
+    MonthCounterBar,
+    MonthCounterLine,
+    WeekCounterBar,
+    WeekCounterLine,
+)
 
 registry = []
 
@@ -64,7 +70,8 @@ def plot_events_per_day_as_timeseries(figure: Figure, cohort: Cohort) -> Figure:
 
 class EventStartAgg(Aggregator):
     @property
-    def agg(self): return event_start_agg
+    def agg(self):
+        return event_start_agg
 
 
 class MonthCounterBarEvent(MonthCounterBar, EventStartAgg):

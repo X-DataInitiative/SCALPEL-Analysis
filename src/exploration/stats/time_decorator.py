@@ -10,13 +10,15 @@ from src.exploration.stats.plotter import BarPlotter, LinePlotter
 
 
 def _set_start_as_index(data: pd.DataFrame) -> pd.DataFrame:
-    return data.set_index(pd.DatetimeIndex(data.start, tz="Europe/Paris", ambiguous=True,
-                                           name="index")).sort_index()
+    return data.set_index(
+        pd.DatetimeIndex(data.start, tz="Europe/Paris", ambiguous=True, name="index")
+    ).sort_index()
 
 
 def _set_end_as_index(data: pd.DataFrame) -> pd.DataFrame:
-    return data.set_index(pd.DatetimeIndex(data.end, tz="Europe/Paris", ambiguous=True,
-                                           name="index")).sort_index()
+    return data.set_index(
+        pd.DatetimeIndex(data.end, tz="Europe/Paris", ambiguous=True, name="index")
+    ).sort_index()
 
 
 def _per_month(data: pd.Series) -> pd.Series:
@@ -47,7 +49,7 @@ def _patch_day(data, ax: Axes) -> Axes:
     minor = IndexLocator(7, +0.4)
     ax.xaxis.set_minor_locator(minor)
     ax.xaxis.set_major_locator(major)
-    ax.set_xticklabels(data.index.strftime('%d %b %Y')[::365])
+    ax.set_xticklabels(data.index.strftime("%d %b %Y")[::365])
     ax.grid(True, which="major", axis="x")
     return ax
 
@@ -57,9 +59,9 @@ def _patch_week(data, ax: Axes) -> Axes:
     minor = IndexLocator(4, +0.4)
     ax.xaxis.set_minor_locator(minor)
     ax.xaxis.set_major_locator(major)
-    ax.set_xticklabels(data.index.strftime('%d %b %Y')[::52])
+    ax.set_xticklabels(data.index.strftime("%d %b %Y")[::52])
     ax.grid(True, which="major", axis="x")
-    ax.grid(True, which="minor", axis="x", linestyle='--')
+    ax.grid(True, which="minor", axis="x", linestyle="--")
     return ax
 
 
@@ -68,8 +70,8 @@ def _patch_month(data, ax: Axes) -> Axes:
     minor = IndexLocator(1, +0.4)
     ax.xaxis.set_minor_locator(minor)
     ax.xaxis.set_major_locator(major)
-    ax.set_xticklabels(data.index.strftime('%b %Y')[::12])
-    ax.grid(True, which="major", axis="x", linestyle='--')
+    ax.set_xticklabels(data.index.strftime("%b %Y")[::12])
+    ax.grid(True, which="major", axis="x", linestyle="--")
     return ax
 
 
@@ -84,8 +86,9 @@ def _patch_date_axe(data: pd.Series, axe: Axes, time_unit: str) -> Axes:
         raise ValueError("Wrong date unit {}. day, month, week only.".format(time_unit))
 
 
-def _plot_count_per_time_unit(data: pd.DataFrame, time_unit: str, ax, plotter,
-                              patch_date_axe=True) -> Axes:
+def _plot_count_per_time_unit(
+    data: pd.DataFrame, time_unit: str, ax, plotter, patch_date_axe=True
+) -> Axes:
     data = _set_start_as_index(data)
     data = _time_unit(data["count(1)"], time_unit)
     plotter(data, ax)
@@ -94,8 +97,9 @@ def _plot_count_per_time_unit(data: pd.DataFrame, time_unit: str, ax, plotter,
     return ax
 
 
-def _plot_concept_count_per_time_unit(figure: Figure, time_unit: str, cohort: Cohort,
-                                      agg, plotter, patch=True) -> Figure:
+def _plot_concept_count_per_time_unit(
+    figure: Figure, time_unit: str, cohort: Cohort, agg, plotter, patch=True
+) -> Figure:
     """Basic function"""
     data = agg(cohort, "count")
     _plot_count_per_time_unit(data, time_unit, figure.gca(), plotter, patch)
@@ -111,23 +115,27 @@ class TimeUnit(ABC):
 
 class MonthUnit(TimeUnit):
     @property
-    def time_unit(self) -> str: return "month"
+    def time_unit(self) -> str:
+        return "month"
 
 
 class WeekUnit(TimeUnit):
     @property
-    def time_unit(self): return "week"
+    def time_unit(self):
+        return "week"
 
 
 class DayUnit(TimeUnit):
     @property
-    def time_unit(self): return "day"
+    def time_unit(self):
+        return "day"
 
 
 class TimedAggregatedCounterPlotter(ABC):
     def __call__(self, figure: Figure, cohort: Cohort) -> Figure:
-        return _plot_concept_count_per_time_unit(figure, self.time_unit, cohort,
-                                                 self.agg, self.plotter, self.patch)
+        return _plot_concept_count_per_time_unit(
+            figure, self.time_unit, cohort, self.agg, self.plotter, self.patch
+        )
 
 
 class MonthCounter(TimedAggregatedCounterPlotter, MonthUnit):

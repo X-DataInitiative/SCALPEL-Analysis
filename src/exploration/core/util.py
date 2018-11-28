@@ -1,12 +1,10 @@
-from typing import Iterable, Callable
-
 from functools import reduce
+from typing import Callable, Iterable
 
 from pyspark.sql import DataFrame
 
 
-def fold_right(f: Callable,
-               cohorts: Iterable):
+def fold_right(f: Callable, cohorts: Iterable):
     t = iter(cohorts)
     init_value = next(t)
     return reduce(f, t, init_value)

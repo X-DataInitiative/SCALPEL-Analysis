@@ -1,9 +1,8 @@
+from src.exploration.core.util import data_frame_equality, fold_right
 from .pyspark_tests import PySparkTest
-from src.exploration.core.util import fold_right, data_frame_equality
 
 
 class TestUtil(PySparkTest):
-
     def test_fold_right(self):
         input = [1, 2, 3]
 
@@ -18,4 +17,3 @@ class TestUtil(PySparkTest):
 
         self.assertTrue(data_frame_equality(df, df))
         self.assertFalse(data_frame_equality(df, None))
-

@@ -1,10 +1,10 @@
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
 from src.exploration.core.cohort import Cohort
-from src.exploration.core.decorators import xlabel, ylabel, title
+from src.exploration.core.decorators import title, ylabel
 from src.exploration.stats.grouper import agg
 
 registry = []
@@ -22,7 +22,9 @@ def _get_distinct(data, group_columns) -> pd.DataFrame:
 @register
 @ylabel("Number of subjects")
 @title("Number of distinct events per subject")
-def plot_unique_event_distribution_per_patient(figure: Figure, cohort: Cohort) -> Figure:
+def plot_unique_event_distribution_per_patient(
+    figure: Figure, cohort: Cohort
+) -> Figure:
     group_columns = ["patientID", "value"]
     data = agg(cohort.events, frozenset(group_columns), "count")
     data = _get_distinct(data, group_columns)
@@ -36,7 +38,9 @@ def plot_unique_event_distribution_per_patient(figure: Figure, cohort: Cohort) -
 @register
 @ylabel("Number of distinct patients")
 @title("Number of distinct patients count per event")
-def plot_patient_distribution_per_unique_event(figure: Figure, cohort: Cohort) -> Figure:
+def plot_patient_distribution_per_unique_event(
+    figure: Figure, cohort: Cohort
+) -> Figure:
     group_columns = ["patientID", "value"]
     data = _get_distinct(cohort.events, group_columns)
     data = agg(data[group_columns], frozenset(["value"]), "count")

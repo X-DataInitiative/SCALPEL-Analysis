@@ -1,15 +1,16 @@
 import json
+from copy import copy
 from typing import List
 
-from copy import copy
-
-from .metadata import Metadata
 from .cohort import Cohort
+from .metadata import Metadata
 
 
 def metadata_from_flowchart(metadata: Metadata, flowchart_json: str) -> Metadata:
     flowchart_description = json.loads(flowchart_json)
-    intermediate = flowchart_description["intermediate_operations"]  # type: Dict[str, Dict]
+    intermediate = flowchart_description[
+        "intermediate_operations"
+    ]  # type: Dict[str, Dict]
     updated_metadata = copy(metadata)
     for (_, description) in intermediate.items():
         new_cohort = metadata.get_from_description(description)
@@ -36,14 +37,13 @@ class Flowchart:
         self.steps = steps  # type: List[Cohort]
 
     @staticmethod
-    def from_json(metadata: Metadata, flowchart_json: str) -> 'Flowchart':
+    def from_json(metadata: Metadata, flowchart_json: str) -> "Flowchart":
         steps = get_steps(flowchart_json)  # type: List[str]
         metadata_flow_chart = metadata_from_flowchart(metadata, flowchart_json)
         new_metadata = metadata.union(metadata_flow_chart)  # type: Metadata
-        return Flowchart(
-            [new_metadata.get(step) for step in steps])
+        return Flowchart([new_metadata.get(step) for step in steps])
 
-    def create_flowchart(self, input: Cohort) -> 'Flowchart':
+    def create_flowchart(self, input: Cohort) -> "Flowchart":
         """Create a flowchart for the input."""
         new_steps = [input.intersection(self.steps[0])]  # type: List[Cohort]
         for step in self.steps[1:]:
