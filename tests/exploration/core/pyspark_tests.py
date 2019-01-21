@@ -24,6 +24,7 @@ class PySparkTest(unittest.TestCase):
     def setUpClass(cls):
         cls.suppress_py4j_logging()
         cls.spark = cls.create_testing_pyspark_session()
+        cls.spark.conf.set("spark.sql.session.timeZone", "UTC")
 
     @classmethod
     def tearDownClass(cls):
