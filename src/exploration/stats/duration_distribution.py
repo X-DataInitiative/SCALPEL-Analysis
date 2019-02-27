@@ -50,7 +50,7 @@ def plot_duration_distribution_per_month_as_bar(
     df.duration = df.duration.astype("int32")
     df = df.groupby("duration").sum().reset_index()
     ax = figure.gca()
-    ax.bar(x=range(len(df)), height=df["count(1)"].values)
+    ax.bar(range(len(df)), df["count(1)"].values)
     ax.set_xticklabels(df.duration.values)
     ax.set_xticks(range(len(df)))
 
@@ -68,7 +68,7 @@ def plot_mean_duration_per_value(figure: Figure, cohort: Cohort) -> Figure:
         cohort.events, frozenset(["value"]), "duration", "mean"
     ).sort_values("value")
     ax = figure.gca()
-    ax.barh(y=range(len(df.value)), width=df["avg(duration)"].values)
+    ax.barh(range(len(df.value)), df["avg(duration)"].values)
     ax.set_yticklabels(df.value.values)
     ax.set_yticks(range(len(df.value)))
     return figure
