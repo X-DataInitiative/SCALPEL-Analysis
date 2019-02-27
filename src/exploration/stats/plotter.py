@@ -15,7 +15,7 @@ def plot_line(data: pd.Series, ax: Axes) -> Axes:
 
 
 def plot_bars(data: pd.Series, ax: Axes) -> Axes:
-    ax.bar(x=range(len(data.values)), height=data.values)
+    ax.bar(range(len(data.values)), data.values)
     return ax
 
 

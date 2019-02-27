@@ -45,8 +45,8 @@ def plot_fractures_by_site(figure: Figure, cohort: Cohort) -> Figure:
         "count(1)", ascending=True
     )
     axe.barh(
-        y=range(len(fractures_site)),
-        width=fractures_site["count(1)"].values,
+        range(len(fractures_site)),
+        fractures_site["count(1)"].values,
         tick_label=fractures_site.groupID.values,
     )
     return figure
@@ -61,7 +61,7 @@ def plot_fractures_count_per_admission(figure: Figure, cohort: Cohort) -> Figure
     ax = figure.gca()
     data = _admission_count(cohort)
     data = data.groupby("count(1)").count().patientID
-    sns.barplot(x=data.index.values, y=data.values)
+    sns.barplot(data.index.values, data.values)
     ax.grid(True, which="major", axis="y", linestyle="-")
     return figure
 
@@ -82,7 +82,7 @@ def plot_admission_number_per_patient(figure: Figure, cohort: Cohort) -> Figure:
         .count()
         .patientID
     )
-    sns.barplot(x=data.index.values, y=data.values)
+    sns.barplot(data.index.values, data.values)
     ax.grid(True, which="major", axis="y")
     return figure
 
