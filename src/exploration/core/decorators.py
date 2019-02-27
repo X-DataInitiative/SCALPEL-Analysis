@@ -136,25 +136,15 @@ def percentage_y(total, y_limit):
             ax = plt.gca()
             ax2 = ax.twinx()
 
-            # Switch so count axis is on right, frequency on left
-            ax2.yaxis.tick_left()
-            ax.yaxis.tick_right()
-
-            # Also switch the labels over
-            ax.yaxis.set_label_position("right")
-            ax2.yaxis.set_label_position("left")
-
-            ax2.set_ylabel("[%]")
-
             # Use a LinearLocator to ensure the correct number of ticks
+            ax.set_ylabel("[%]")
             ax.yaxis.set_major_locator(ticker.LinearLocator(11))
+            ax.set_ylim(0, y_limit)
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
 
             # Fix the frequency range to 0-100
-            ax2.set_ylim(0, y_limit)
-            ax.set_ylim(0, (y_limit / 100) * total)
-            ax.yaxis.set_major_formatter(millify)
-            # And use a MultipleLocator to ensure a tick spacing of 10
-            ax2.yaxis.set_major_locator(ticker.MultipleLocator(10))
+            ax2.set_ylim(0, (y_limit / 100) * total)
+            ax2.yaxis.set_major_formatter(millify)
 
             ax2.grid(None)
 
