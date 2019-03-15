@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from collections import OrderedDict
 import pandas as pd
 from pyspark.sql.types import IntegerType, StructField, StructType, TimestampType
 
@@ -51,12 +51,12 @@ class TestCohort(PySparkTest):
     def test_intersect(self):
         patients_1, patients_pd_1 = self.create_spark_df({"patientID": [1, 2]})
         events_1, events_pd_1 = self.create_spark_df(
-            {"patientID": [1, 2], "value": ["DP", "DAS"]}
+            OrderedDict([("patientID", [1, 2]), ("value", ["DP", "DAS"])])
         )
 
         patients_2, patients_pd_2 = self.create_spark_df({"patientID": [1]})
         events_2, events_pd_2 = self.create_spark_df(
-            {"patientID": [1], "value": ["DP"]}
+            OrderedDict([("patientID", [1]), ("value", ["DP"])])
         )
 
         cohort1 = Cohort("liberal_fractures", "liberal_fractures", patients_1, events_1)
@@ -71,11 +71,13 @@ class TestCohort(PySparkTest):
     def test_intersect_all(self):
         patients_1, _ = self.create_spark_df({"patientID": [1, 2]})
         events_1, _ = self.create_spark_df(
-            {"patientID": [1, 2], "value": ["DP", "DAS"]}
+            OrderedDict([("patientID", [1, 2]), ("value", ["DP", "DAS"])])
         )
 
         patients_2, _ = self.create_spark_df({"patientID": [1]})
-        events_2, _ = self.create_spark_df({"patientID": [1], "value": ["DP"]})
+        events_2, _ = self.create_spark_df(
+            OrderedDict([("patientID", [1]), ("value", ["DP"])])
+        )
 
         patients_3, _ = self.create_spark_df({"patientID": [1, 3]})
 
@@ -93,11 +95,13 @@ class TestCohort(PySparkTest):
     def test_difference(self):
         patients_1, _ = self.create_spark_df({"patientID": [1, 2]})
         events_1, _ = self.create_spark_df(
-            {"patientID": [1, 2], "value": ["DP", "DAS"]}
+            OrderedDict([("patientID", [1, 2]), ("value", ["DP", "DAS"])])
         )
 
         patients_2, _ = self.create_spark_df({"patientID": [1]})
-        events_2, _ = self.create_spark_df({"patientID": [1], "value": ["DP"]})
+        events_2, _ = self.create_spark_df(
+            OrderedDict([("patientID", [1]), ("value", ["DP"])])
+        )
 
         cohort1 = Cohort("liberal_fractures", "liberal_fractures", patients_1, events_1)
 
@@ -106,19 +110,21 @@ class TestCohort(PySparkTest):
         result = cohort1.difference(cohort2)
 
         patients_3, _ = self.create_spark_df({"patientID": [2]})
-        events_3, _ = self.create_spark_df({"patientID": [2], "value": ["DAS"]})
+        events_3, _ = self.create_spark_df(
+            OrderedDict([("patientID", [2]), ("value", ["DAS"])])
+        )
         expected = Cohort("hospit_fractures", "hospit_fractures", patients_3, events_3)
         self.assertEqual(result, expected)
 
     def test_difference_all(self):
         patients_1, patients_pd_1 = self.create_spark_df({"patientID": [1, 2]})
         events_1, events_pd_1 = self.create_spark_df(
-            {"patientID": [1, 2], "value": ["DP", "DAS"]}
+            OrderedDict([("patientID", [1, 2]), ("value", ["DP", "DAS"])])
         )
 
         patients_2, patients_pd_2 = self.create_spark_df({"patientID": [1]})
         events_2, events_pd_2 = self.create_spark_df(
-            {"patientID": [1], "value": ["DP"]}
+            OrderedDict([("patientID", [1]), ("value", ["DP"])])
         )
 
         patients_3, patients_pd_3 = self.create_spark_df({"patientID": [1, 3]})

@@ -31,5 +31,7 @@ class PySparkTest(unittest.TestCase):
         cls.spark.stop()
 
     def create_spark_df(self, data: Dict):
-        df = pd.DataFrame(data)
+        # Warning: if you want to be sure of colums ordering, use and OrderedDict
+        df = pd.DataFrame(data, columns=data.keys())
+        # use of dict.keys() to ensure consistent column ordering
         return self.spark.createDataFrame(df), df

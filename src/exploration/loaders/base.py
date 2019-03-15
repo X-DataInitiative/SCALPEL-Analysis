@@ -5,10 +5,11 @@ from typing import List, Tuple
 import numpy as np
 import pyspark.sql.functions as sf
 import pytz
-from pyspark.ml.feature import Bucketizer, StringIndexer
+from pyspark.ml.feature import Bucketizer
 from pyspark.sql import DataFrame
 
 from src.exploration.core.cohort import Cohort
+from src.exploration.core.util import rename_df_columns
 
 
 class BaseLoader(object):
@@ -34,7 +35,7 @@ class BaseLoader(object):
 
     :param followups: `Cohort` Cohort containing the follow up information. This cohort
         should contain subjects and events matching the FollowUp case class, that is the
-         columns: 'patientID', 'start', 'stop', 'endReason'.
+         columns: 'patientID', 'start', 'end', 'endReason'.
 
     :param study_start: `datetime` Date of the study start. Beware of timezones issues!
 
@@ -69,19 +70,23 @@ class BaseLoader(object):
         self._study_start = None
         self._study_end = None
         self._is_using_longitudinal_age_groups = False
-        self._feature_mapping = []
 
-        if self.run_checks:
-            self._has_timezone(study_start)
-            self._has_timezone(study_end)
-            if study_start >= study_end:
-                raise ValueError("study_start should be < study_end")
+        if not self._has_timezone(study_start):
+            raise ValueError("study_start should have a timezone. Please use pytz.")
+        if not self._has_timezone(study_end):
+            raise ValueError("study_end should have a timezone. Please use pytz.")
+        if study_start >= study_end:
+            raise ValueError("study_start should be < study_end")
         self._study_start = study_start
         self._study_end = study_end
 
-        if not run_checks:
-            self._has_timezone(age_reference_date)
-        self.age_reference_date = age_reference_date
+        if not self._has_timezone(age_reference_date):
+            raise ValueError(
+                "age_reference_date should have a timezone. " "Please use pytz."
+            )
+        if age_reference_date < self.study_start:
+            raise ValueError("age_reference_date should be >= study_start.")
+        self._age_reference_date = age_reference_date
         self._age_groups = None
         self.age_groups = age_groups
         self.n_age_groups = len(age_groups) - 1 if age_groups is not None else 0
@@ -101,7 +106,7 @@ class BaseLoader(object):
     @study_start.setter
     def study_start(self, value):
         raise PermissionError(
-            "study_start should not be modified after loader initialisation"
+            "study_start should not be updated after loader initialisation"
         )
 
     @property
@@ -111,7 +116,17 @@ class BaseLoader(object):
     @study_end.setter
     def study_end(self, value):
         raise PermissionError(
-            "study_end should not be modified after loader initialisation"
+            "study_end should not be updated after loader initialisation"
+        )
+
+    @property
+    def age_reference_date(self) -> datetime:
+        return self._age_reference_date
+
+    @age_reference_date.setter
+    def age_reference_date(self, value: datetime) -> None:
+        raise PermissionError(
+            "age_reference_date should not be updated after loader initialisation."
         )
 
     @property
@@ -120,17 +135,9 @@ class BaseLoader(object):
 
     @age_groups.setter
     def age_groups(self, value: List[float]) -> None:
-        if self.run_checks and value != sorted(value):
+        if value != sorted(value):
             raise ValueError("age_groups bounds should be sorted.")
         self._age_groups = value
-
-    @property
-    def feature_mapping(self) -> List[str]:
-        return self._feature_mapping
-
-    @feature_mapping.setter
-    def feature_mapping(self, value: List) -> None:
-        raise NotImplementedError("feature_mapping should not be set manually.")
 
     @property
     def base_population(self) -> Cohort:
@@ -139,7 +146,11 @@ class BaseLoader(object):
     @base_population.setter
     def base_population(self, value: Cohort) -> None:
         if self.run_checks and self.age_groups is not None:
-            self._check_subjects_age_consistency_w_age_groups(value)
+            invalid = self._find_subjects_with_age_inconsistent_w_age_groups(value)
+            if invalid.subjects.take(1):
+                raise ValueError(
+                    self._log_invalid_events_cohort(invalid, log_invalid_subjects=True)
+                )
         self._base_population = value
 
     @property
@@ -148,14 +159,18 @@ class BaseLoader(object):
 
     @followups.setter
     def followups(self, value: Cohort) -> None:
-        # Why on earth end of followup is called stop when everything else's end
-        # is called end? WTF?
-        value_ = copy(value)
-        value_.events = value_.events.withColumnRenamed("stop", "end")
         if self.run_checks:
-            self._check_consistency_with_study_dates(value_, ["start", "end"])
-            self._check_followups_start_end_ordering(value_)
-        self._followups = value_
+            invalid = self._find_events_not_in_study_dates(value)
+            if invalid.events.take(1):
+                raise ValueError(
+                    self._log_invalid_events_cohort(invalid, log_invalid_events=True)
+                )
+            invalid = self._find_inconsistent_start_end_ordering(value)
+            if invalid.events.take(1):
+                raise ValueError(
+                    self._log_invalid_events_cohort(invalid, log_invalid_events=True)
+                )
+        self._followups = value
 
     @property
     def is_using_longitudinal_age_groups(self) -> bool:
@@ -163,7 +178,7 @@ class BaseLoader(object):
 
     @is_using_longitudinal_age_groups.setter
     def is_using_longitudinal_age_groups(self, value: bool) -> None:
-        raise NotImplementedError(
+        raise PermissionError(
             "is_using_longitudinal_age_groups should not be set manually."
         )
 
@@ -181,25 +196,10 @@ class BaseLoader(object):
         n_age_groups = len(mapping)
         return output, n_age_groups, mapping
 
-    def _is_before_study_start(self, date: pytz.datetime.datetime) -> bool:
-        if not self._has_timezone(date):
-            date = pytz.UTC.localize(date)
-        else:
-            date = pytz.UTC.normalize(date)
-        return date < self.study_start
-
-    def _is_after_study_end(self, date: pytz.datetime.datetime) -> bool:
-        if not self._has_timezone(date):
-            date = pytz.UTC.localize(date)
-        else:
-            date = pytz.UTC.normalize(date)
-        return date > self.study_end
-
-    def _check_event_dates_consistency_w_followup_bounds(self, other: Cohort) -> None:
+    def _find_events_not_in_followup_bounds(self, cohort: Cohort) -> Cohort:
         fups = copy(self.followups)
-        fups.events = self._rename_columns(fups.events, prefix="fup_")
-        events = other.events.join(fups.events, "patientID")
-        events.select(sf.countDistinct("patientID"))
+        fups.events = rename_df_columns(fups.events, prefix="fup_")
+        events = cohort.events.join(fups.events, "patientID")
         # between returns false when col is null
         invalid_events = events.where(
             ~(
@@ -207,126 +207,92 @@ class BaseLoader(object):
                 & sf.col("end").between(sf.col("fup_start"), sf.col("fup_end"))
             )
         )
-        [[patients_count, events_count]] = invalid_events.select(
-            sf.countDistinct("patientID"), sf.count("patientID")
-        ).collect()
-        if events_count != 0:
-            raise ValueError(
-                (
-                    "Cohort contains {n_events} events (concerns "
-                    "{n_patients} patients) which are not between "
-                    "followup start and followup end."
-                ).format(n_events=events_count, n_patients=patients_count)
+        return Cohort(
+            cohort.name + "_inconsistent_w_followup_bounds",
+            "events inconsistent with followup bounds",
+            invalid_events.select("patientID").distinct(),
+            invalid_events,
+        )
+
+    def _find_events_not_in_study_dates(self, cohort: Cohort) -> Cohort:
+        # between returns false when col is null
+        invalid_events = cohort.events.where(
+            ~(
+                sf.col("start").between(
+                    sf.lit(self.study_start), sf.lit(self.study_end)
+                )
+                & sf.col("end").between(
+                    sf.lit(self.study_start), sf.lit(self.study_end)
+                )
             )
+        )
+        return Cohort(
+            cohort.name + "_inconsistent_w_study_dates",
+            "events inconsistent with study dates",
+            invalid_events.select("patientID").distinct(),
+            invalid_events,
+        )
 
-    def _check_consistency_with_study_dates(
-        self, cohort: Cohort, column_names: list
-    ) -> None:
-        """Check that events start and end dates are within study dates."""
-        columns = [sf.min(c) for c in column_names]
-        columns.extend([sf.max(c) for c in column_names])  # no proper flatmap
-        extrema = cohort.events.select(columns).toPandas()
-        minima = extrema[[col for col in extrema if col.startswith("min")]]
-        maxima = extrema[[col for col in extrema if col.startswith("max")]]
-        if np.any(minima.applymap(self._is_before_study_start)):
-            raise ValueError("Found date < study_start.")
-        if np.any(maxima.applymap(self._is_after_study_end)):
-            raise ValueError("Found date > study_end.")
-
-    def _check_subjects_age_consistency_w_age_groups(self, cohort: Cohort) -> None:
+    def _find_subjects_with_age_inconsistent_w_age_groups(
+        self, cohort: Cohort
+    ) -> Cohort:
         """Check if min and max age_groups are consistent with subjects ages."""
         if not cohort.has_subject_information():
             raise ValueError("Cohort should have subject information.")
         duplicate = copy(cohort)
-        duplicate.add_age_information(self.age_reference_date)
-        ages_extrema = duplicate.subjects.select(
-            sf.min("age"), sf.max("age")
-        ).toPandas()
-        [[min_age]] = ages_extrema[["min(age)"]].values
-        [[max_age]] = ages_extrema[["max(age)"]].values
-        if self.is_using_longitudinal_age_groups:
-            study_length = np.ceil((self.study_end - self.study_start).days / 365)
-        else:
-            study_length = 0
-
-        if min_age < min(self.age_groups):
-            raise ValueError("Found patients whose age is < min(age_group)")
-
-        if (max_age + study_length) > max(self.age_groups):
-            raise ValueError(
-                "Found patients whose age is > max(age_group)."
-                "Not that max(age_group) is corrected using "
-                "study_length when working with longitudinal"
-                "age groups."
-            )
+        duplicate.add_age_information(self.age_reference_date)  # add starting age
+        study_length = (
+            np.ceil((self.study_end - self.study_start).days / 365.25)
+            if self.is_using_longitudinal_age_groups
+            else 0
+        )
+        min_starting_age = min(self.age_groups)
+        max_starting_age = max(self.age_groups) - np.ceil(study_length)
+        invalid_subjects = duplicate.subjects.where(
+            ~sf.col("age").between(min_starting_age, max_starting_age)
+        )
+        return Cohort(
+            cohort.name + "_inconsistent_w_ages_and_age_groups",
+            "subjects inconsistent with age groups",
+            invalid_subjects,
+        )
 
     @staticmethod
-    def _check_followups_start_end_ordering(cohort: Cohort) -> None:
-        """Check that start < end for each event. If end is null, ignore row."""
+    def _find_inconsistent_start_end_ordering(cohort: Cohort) -> Cohort:
         events = cohort.events
         invalid_events = events.where(sf.col("start") >= sf.col("end"))
-        [[events_count, patients_count]] = invalid_events.select(
-            sf.countDistinct("patientID"), sf.count("patientID")
-        ).collect()
-        if events_count != 0:
-            raise ValueError(
-                (
-                    "Cohort contains {n_events} followups "
-                    "(concerns {n_patients} patients) for which"
-                    "followup start >= followup end."
-                ).format(n_events=events_count, n_patients=patients_count)
-            )
+        return Cohort(
+            cohort.name + "_inconsistent_w_start_end_ordering",
+            "events where start >= end dates are inconsistent",
+            invalid_events.select("patientID").distinct(),
+            invalid_events,
+        )
 
     @staticmethod
-    def _has_timezone(date: pytz.datetime.datetime) -> None:
+    def _log_invalid_events_cohort(
+        cohort: Cohort,
+        log_invalid_events: bool = False,
+        log_invalid_subjects: bool = False,
+    ) -> str:
+        cohort_name, reference = cohort.name.split("_inconsistent_w_")
+        n_subjects = cohort.subjects.count()
+        msg = (
+            "Found {n_subjects} subjects in cohort {cohort_name} inconsistent with"
+            " {reference}.\n".format(
+                n_subjects=n_subjects, cohort_name=cohort_name, reference=reference
+            )
+        )
+        if log_invalid_events:
+            msg += "Showing first 10 invalid events below:\n"
+            msg += cohort.events.limit(10).toPandas().to_string(index=False)
+            msg += "\n"
+        if log_invalid_subjects:
+            msg += "Showing first 10 invalid subjects below:\n"
+            msg += cohort.subjects.limit(10).toPandas().to_string(index=False)
+            msg += "\n"
+        return msg
+
+    @staticmethod
+    def _has_timezone(date: pytz.datetime.datetime) -> bool:
         """Check if date has timezone."""
         return date.tzinfo is not None
-
-    @staticmethod
-    def _rename_columns(
-        df: DataFrame,
-        new_names: List[str] = None,
-        prefix: str = "",
-        suffix: str = "",
-        keys: Tuple[str] = ("patientID",),
-    ) -> DataFrame:
-        """Rename columns of a pyspark DataFrame.
-
-        :param df: dataframe whose columns will be renamed
-        :param new_names: If not None, these name will replace the old ones.
-         The order should be the same as df.columns where the keys has been
-         removed.
-        :param prefix: Prefix added to colnames.
-        :param suffix: Suffix added to colnames.
-        :param keys: Columns whose name will not be modified (useful for joining
-         keys for example).
-        :return: Dataframe with renamed columns.
-        """
-        old_names = [c for c in df.columns if c not in keys]
-        if new_names is None:
-            new_names = [prefix + c + suffix for c in old_names]
-        return df.select(
-            *keys, *[sf.col(c).alias(new_names[i]) for i, c in enumerate(old_names)]
-        )
-
-    @staticmethod
-    def _index_string_column(
-        dataframe: DataFrame, input_col: str, output_col: str
-    ) -> Tuple[DataFrame, int, List[str]]:
-        """Add a column containing an index corresponding to a string column.
-
-        :param dataframe: Dataframe on which add index column.
-        :param input_col: Name of the column to index
-        :param output_col: Name of the index column in the resulting dataframe.
-        :return: (resulting_dataframe, n_values_in_index, index_mapping)
-        """
-        indexer = StringIndexer(
-            inputCol=input_col, outputCol=output_col, stringOrderType="alphabetAsc"
-        )
-        model = indexer.fit(dataframe)
-        output = model.transform(dataframe)
-
-        mapping = model.labels
-        n_categories = len(mapping)
-
-        return output, n_categories, mapping

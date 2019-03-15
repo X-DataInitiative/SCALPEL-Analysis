@@ -1,7 +1,5 @@
-from copy import copy
 from datetime import datetime
 from typing import Tuple, List
-from warnings import warn
 
 import numpy as np
 import pyspark.sql.functions as sf
@@ -11,10 +9,14 @@ from scipy.sparse import csr_matrix
 
 from src.exploration.core.cohort import Cohort
 from src.exploration.loaders.base import BaseLoader
+from src.exploration.core.util import rename_df_columns, index_string_column
 
-# TODO: (later) Implement trunc strategy for bucket rounding
+# TODO: (later) Implement trunc strategy for bucket rounding.
+#  If bucket_rounding is equal to 'trunc', then this bucket is removed and
+#  so are associated events. This last option might result in subjects loss.
+
 # TODO later: add an option to keep only patients whose followup lasts at least a
-#      minimum number of periods
+#      minimum number of time periods?
 
 
 class ConvSccsLoader(BaseLoader):
@@ -58,13 +60,14 @@ class ConvSccsLoader(BaseLoader):
         If bucket_rounding is equal to 'ceil', then this bucket is kept as is.
         If bucket_rounding is equal to 'floor', then this bucket is removed
         and its events are moved to the last full-sized bucket.
-        If bucket_rounding is equal to 'trunc', then this bucket is removed and
-        so are associated events. This last option might result in subjects loss
-        (not implemented yet).
     :param  run_checks: `bool`, default=True Automated checks are performed on cohorts
         passed to the loaders. If you don't want these checks to be ran, set this option
         to False. Disabling the checks might increase performance, but use at your own
         risks!
+    :param  exposures_split_column: `str`, default='value' Events field used to
+        identify the different types of exposures when computing the features.
+    :param  outcomes_split_column: `str`, default='value' Events field used to
+        identify the different types of exposures when computing the outcomes.
     """
 
     def __init__(
@@ -80,6 +83,8 @@ class ConvSccsLoader(BaseLoader):
         age_groups: list = None,
         bucket_rounding="ceil",
         run_checks=True,
+        exposures_split_column="value",
+        outcomes_split_column="value",
     ):
         super().__init__(
             base_population,
@@ -98,9 +103,15 @@ class ConvSccsLoader(BaseLoader):
         # Positivity of n_buckets is implied by condition
         # study_start < study_end implemented in BaseLoader
         self.n_buckets = int(
-            np.ceil(n_buckets) if (bucket_rounding == "ceil") else np.floor(n_buckets)
+            np.ceil(n_buckets)
+            if (self.bucket_rounding == "ceil")
+            else np.floor(n_buckets)
         )
         # Cohorts
+        self._exposures_split_column = None
+        self._outcomes_split_column = None
+        self.exposures_split_column = exposures_split_column
+        self.outcomes_split_column = outcomes_split_column
         self._exposures = None
         self._outcomes = None
         self._final_cohort = None
@@ -110,20 +121,18 @@ class ConvSccsLoader(BaseLoader):
         self._features = None
         self._labels = None
         self._censoring = None
+        self._feature_mapping = []
+        self._outcome_mapping = []
 
     def load(self) -> Tuple[List[csr_matrix], List[np.ndarray], np.ndarray]:
-        if len(self.features) != len(self.labels):
-            raise AssertionError(
-                "Number of feature matrices does not match "
-                "number of label matrices. You might want to"
-                " investigate this"
-            )
-        if len(self.features) != len(self.censoring):
-            raise AssertionError(
-                "Number of feature matrices does not match "
-                "number of censoring values. You might want to"
-                " investigate this"
-            )
+        assert len(self.features) == len(self.labels), (
+            "Number of feature matrices does not match number of label matrices. "
+            "You might want to investigate this"
+        )
+        assert len(self.features) == len(self.censoring), (
+            "Number of feature matrices does not match number of censoring values. "
+            "You might want to investigate this"
+        )
         return self.features, self.labels, self.censoring
 
     @property
@@ -132,14 +141,39 @@ class ConvSccsLoader(BaseLoader):
 
     @bucket_rounding.setter
     def bucket_rounding(self, value: str) -> None:
-        if value not in ["ceil", "floor", "trunc"]:
+        if value not in ["ceil", "floor"]:
             raise ValueError(
-                "bucket_rounding should be equal to either 'ceil',"
-                "'floor', or 'trunc'"
+                "bucket_rounding should be equal to either 'ceil' or 'floor'"
             )
-        if value == "trunc":
-            raise NotImplementedError("Not implemented yet :( ")
         self._bucket_rounding = value
+
+    @property
+    def exposures_split_column(self) -> str:
+        return self._exposures_split_column
+
+    @exposures_split_column.setter
+    def exposures_split_column(self, value: str) -> None:
+        if value not in ["category", "groupID", "value"]:
+            raise ValueError(
+                "exposures_split_column should be either "
+                "'category', 'groupID', or 'value'"
+            )
+        else:
+            self._exposures_split_column = value
+
+    @property
+    def outcomes_split_column(self) -> str:
+        return self._outcomes_split_column
+
+    @outcomes_split_column.setter
+    def outcomes_split_column(self, value: str) -> None:
+        if value not in ["category", "groupID", "value"]:
+            raise ValueError(
+                "outcomes_split_column should be either "
+                "'category', 'groupID', or 'value'"
+            )
+        else:
+            self._outcomes_split_column = value
 
     @property
     def exposures(self) -> Cohort:
@@ -148,7 +182,11 @@ class ConvSccsLoader(BaseLoader):
     @exposures.setter
     def exposures(self, value: Cohort) -> None:
         if self.run_checks:
-            self._check_event_dates_consistency_w_followup_bounds(value)
+            invalid = self._find_events_not_in_followup_bounds(value)
+            if invalid.events.take(1):
+                raise ValueError(
+                    self._log_invalid_events_cohort(invalid, log_invalid_events=True)
+                )
         self._exposures = value
 
     @property
@@ -158,22 +196,31 @@ class ConvSccsLoader(BaseLoader):
     @outcomes.setter
     def outcomes(self, value: Cohort) -> None:
         if self.run_checks:
-            self._check_event_dates_consistency_w_followup_bounds(value)
-        warn(
-            "At this moment, ConvSccsLoader considers only the first outcome for each "
-            "subject, per category and groupID. Latter outcomes are ignored."
-        )
-        duplicate = copy(value)
-        duplicate.events = (
-            duplicate.events.groupby(
-                "patientID", "category", "groupID", "value", "weight"
+            n_outcomes_types = (
+                value.events.select(sf.col(self.outcomes_split_column))
+                .drop_duplicates()
+                .count()
             )
-            .agg(sf.min("start").alias("start"), sf.min("end").alias("end"))
-            .select(
-                "patientID", "start", "end", "category", "groupID", "value", "weight"
+            assert n_outcomes_types == 1, (
+                "There are more than one type of outcomes, check the 'value' field of"
+                " outcomes cohort events."
             )
-        )
-        self._outcomes = duplicate
+
+            invalid = self._find_events_not_in_followup_bounds(value)
+            if invalid.events.take(1):
+                raise ValueError(
+                    self._log_invalid_events_cohort(invalid, log_invalid_events=True)
+                )
+
+            many_outcomes = self._find_subjects_with_many_outcomes(value)
+            if many_outcomes.subjects.take(1):
+                raise ValueError(
+                    self._log_invalid_events_cohort(
+                        many_outcomes, log_invalid_subjects=True
+                    )
+                )
+
+        self._outcomes = value
 
     @property
     def final_cohort(self) -> Cohort:
@@ -184,18 +231,17 @@ class ConvSccsLoader(BaseLoader):
             final_cohort.add_subject_information(
                 self.base_population, missing_patients="omit_all"
             )
-            if final_cohort.subjects.count() == 0:
-                raise AssertionError(
-                    "Final cohort is empty, please check that "
-                    "the intersection of the provided cohorts "
-                    "is nonempty"
-                )
+            assert final_cohort.subjects.count() != 0, (
+                "Final cohort is empty, please check that "
+                "the intersection of the provided cohorts "
+                "is nonempty"
+            )
             self._final_cohort = final_cohort
         return self._final_cohort
 
     @final_cohort.setter
     def final_cohort(self, value: Cohort) -> None:
-        raise NotImplementedError(
+        raise PermissionError(
             "final_cohort should not be set manually,"
             "it is computed from initial cohorts."
         )
@@ -208,7 +254,7 @@ class ConvSccsLoader(BaseLoader):
 
     @features.setter
     def features(self, value: List[csr_matrix]) -> None:
-        raise NotImplementedError(
+        raise PermissionError(
             "features should not be set manually,"
             "they are computed from initial cohorts."
         )
@@ -221,7 +267,7 @@ class ConvSccsLoader(BaseLoader):
 
     @labels.setter
     def labels(self, value: List[np.ndarray]) -> None:
-        raise NotImplementedError(
+        raise PermissionError(
             "labels should not be set manually,"
             "they are computed from initial cohorts."
         )
@@ -234,56 +280,81 @@ class ConvSccsLoader(BaseLoader):
 
     @censoring.setter
     def censoring(self, value: np.ndarray) -> None:
-        raise NotImplementedError(
+        raise PermissionError(
             "censoring should not be set manually,"
             "it is computed from initial cohorts."
         )
 
+    @property
+    def mappings(self) -> Tuple[List[str], List[str]]:
+        return self._feature_mapping, self._outcome_mapping
+
+    @mappings.setter
+    def mappings(self, value: Tuple[List[str], List[str]]) -> None:
+        raise PermissionError(
+            "mappings should not be set manually,"
+            "they are computed from initial cohorts."
+        )
+
     def _load_features(self) -> List[csr_matrix]:
         cohort = self.exposures.intersection(self.final_cohort)
-        cohort.add_subject_information(self.final_cohort)
 
-        events = self._discretize_start_end(cohort.events).select(
-            "patientID", "value", "startBucket", "endBucket"
-        )
-        events, n_cols, mapping = self._index_string_column(
-            events, "value", "valueIndex"
+        features, n_cols, mapping = self._get_bucketized_events(
+            cohort, self.exposures_split_column
         )
         self._feature_mapping = mapping
 
-        features_ = events.select(
-            "patientID",
-            sf.col("startBucket").alias("rowIndex"),
-            sf.col("valueIndex").alias("colIndex"),
-        )
-
         if self.age_groups is not None:
+            cohort.add_subject_information(self.final_cohort)
             age_features, mapping = self._compute_longitudinal_age_groups(
                 cohort, n_cols
             )
             self._feature_mapping.extend(mapping)
-            features_ = age_features.union(features_)
-
-        # Remove events which are not in fup ; should be done only for age events
-        # It should not be a problem for exposures as exposure events are checked
-        # to be consistent with fups
-        fup_events = self.followups.intersection(self.final_cohort).events
-        fup_events = self._discretize_start_end(fup_events)
-        fup_events = self._rename_columns(fup_events, prefix="fup_")
-        features_columns = features_.columns
-        features_ = features_.join(fup_events, on="patientID")
-        features_ = features_.where(
-            sf.col("rowIndex").between(
-                sf.col("fup_startBucket"), sf.col("fup_endBucket")
-            )
-        )
-        features_ = features_.select(*features_columns)
+            features = age_features.union(features)
 
         feature_matrix_shape = (int(self.n_buckets), int(n_cols + self.n_age_groups))
-
-        features_matrices = self._get_csr_matrices(features_, feature_matrix_shape)
-
+        features_matrices = self._get_csr_matrices(features, feature_matrix_shape)
         return features_matrices
+
+    def _load_labels(self) -> List[np.ndarray]:
+        cases = self.outcomes.intersection(self.final_cohort)
+
+        labels, n_cols, mapping = self._get_bucketized_events(
+            cases, self.outcomes_split_column
+        )
+        self._outcome_mapping = mapping
+
+        labels_matrix_shape = (int(self.n_buckets), int(n_cols))
+        label_matrices = [
+            l.toarray() for l in self._get_csr_matrices(labels, labels_matrix_shape)
+        ]
+        return label_matrices
+
+    def _load_censoring(self) -> np.ndarray:
+        followups = self.followups.intersection(self.final_cohort)
+        events = self._discretize_start_end(followups.events)
+
+        censoring_ = (
+            events.sort("patientID")
+            .select("endBucket")
+            .na.fill(self.n_buckets)
+            .toPandas()
+            .values
+        )
+        return censoring_
+
+    def _get_bucketized_events(
+        self, cohort: Cohort, split_column: str
+    ) -> Tuple[DataFrame, int, List[str]]:
+        events = self._discretize_start_end(cohort.events).select(
+            "patientID", "value", "startBucket", "endBucket"
+        )
+        events, n_cols, mapping = index_string_column(events, split_column, "colIndex")
+
+        features_ = events.select(
+            "patientID", sf.col("startBucket").alias("rowIndex"), sf.col("colIndex")
+        )
+        return features_, n_cols, mapping
 
     def _compute_longitudinal_age_groups(
         self, cohort: Cohort, col_offset: int
@@ -297,10 +368,9 @@ class ConvSccsLoader(BaseLoader):
         """
         # This implementation is suboptimal, but we need to have something
         # working with inconsistent python versions across the cluster.
-        if not cohort.has_subject_information():
-            raise AssertionError(
-                "Cohort subjects should have gender and birthdate information"
-            )
+        assert (
+            cohort.has_subject_information()
+        ), "Cohort subjects should have gender and birthdate information"
 
         subjects = cohort.subjects.select("patientID", "gender", "birthDate")
 
@@ -330,7 +400,11 @@ class ConvSccsLoader(BaseLoader):
             subjects, "longitudinalAge", "longitudinalAgeBucket"
         )
 
-        assert n_age_groups == self.n_age_groups
+        assert n_age_groups == self.n_age_groups, (
+            "Computed number of age groups is different from the number of specified"
+            " age groups at initialization. There might be empty age_groups,"
+            " you should investigate this."
+        )
 
         age_features = subjects.select(
             sf.col("patientID"),
@@ -338,40 +412,20 @@ class ConvSccsLoader(BaseLoader):
             (sf.col("longitudinalAgeBucket") + col_offset).alias("colIndex"),
         )
 
+        # Remove "age events" which are not in follow-up
+        fup_events = self.followups.intersection(self.final_cohort).events
+        fup_events = self._discretize_start_end(fup_events)
+        fup_events = rename_df_columns(fup_events, prefix="fup_")
+        age_features_columns = age_features.columns
+        age_features = age_features.join(fup_events, on="patientID")
+        age_features = age_features.where(
+            sf.col("rowIndex").between(
+                sf.col("fup_startBucket"), sf.col("fup_endBucket")
+            )
+        )
+        age_features = age_features.select(*age_features_columns)
+
         return age_features, mapping
-
-    def _load_labels(self) -> List[np.ndarray]:
-        cases = self.outcomes.intersection(self.final_cohort)
-        events = self._discretize_start_end(cases.events)
-
-        events, n_cols, _ = self._index_string_column(events, "value", "valueIndex")
-        events = events.select(
-            "patientID",
-            sf.col("startBucket").alias("rowIndex"),
-            sf.col("valueIndex").alias("colIndex"),
-        )
-
-        labels_matrix_shape = (int(self.n_buckets), int(n_cols))
-
-        labels_ = [
-            l.toarray() for l in self._get_csr_matrices(events, labels_matrix_shape)
-        ]
-
-        return labels_
-
-    def _load_censoring(self) -> np.ndarray:
-        followups = self.followups.intersection(self.final_cohort)
-        events = self._discretize_start_end(followups.events)
-
-        censoring_ = (
-            events.sort("patientID")
-            .select("endBucket")
-            .na.fill(self.n_buckets)
-            .toPandas()
-            .values
-        )
-
-        return censoring_
 
     def _discretize_time(self, column: sf.Column) -> sf.Column:
         days_since_study_start = sf.datediff(column, sf.lit(self.study_start))
@@ -423,3 +477,24 @@ class ConvSccsLoader(BaseLoader):
         data = np.ones_like(rows)
         csr = csr_matrix((data, (rows, cols)), shape=csr_matrix_shape)
         return csr
+
+    @staticmethod
+    def _find_subjects_with_many_outcomes(cohort: Cohort) -> Cohort:
+        subjects_w_many_outcomes = (
+            cohort.events.groupby("patientId")
+            .count()
+            .where(sf.col("count") > 1)
+            .select("patientId")
+            .drop_duplicates()
+        )
+        # between returns false when col is null
+        invalid_events = cohort.events.join(subjects_w_many_outcomes, "patientId").sort(
+            "patientId"
+        )
+
+        return Cohort(
+            cohort.name + "_inconsistent_w_single_outcome_constraint",
+            "events showing there are more than one outcome per patient",
+            subjects_w_many_outcomes,
+            invalid_events,
+        )

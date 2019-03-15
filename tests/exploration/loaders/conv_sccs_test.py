@@ -7,11 +7,10 @@ from src.exploration.loaders import ConvSccsLoader
 from src.exploration.core.cohort import Cohort
 from tests.exploration.core.pyspark_tests import PySparkTest
 from src.exploration.core.util import data_frame_equality
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch, PropertyMock, MagicMock
 import pyspark.sql.functions as sf
 from pyspark.sql import Column
 from copy import copy
-from pandas.util.testing import assert_frame_equal
 
 
 class TestConvSccsLoader(PySparkTest):
@@ -50,7 +49,7 @@ class TestConvSccsLoader(PySparkTest):
                 pytz.datetime.datetime(2011, 7, 2, tzinfo=pytz.UTC),
                 pytz.datetime.datetime(2010, 11, 21, tzinfo=pytz.UTC),
             ],
-            "stop": [
+            "end": [
                 pytz.datetime.datetime(2013, 10, 12, tzinfo=pytz.UTC),
                 pytz.datetime.datetime(2011, 6, 20, tzinfo=pytz.UTC),
                 pytz.datetime.datetime(2012, 7, 3, tzinfo=pytz.UTC),
@@ -192,120 +191,168 @@ class TestConvSccsLoader(PySparkTest):
                         " investigate this" in str(context.exception)
                     )
 
-    def test_properties(self):
+    def test_properties_bucket_rounding(self):
         loader = ConvSccsLoader(**self.kwargs)
 
-        # bucket_rounding
         self.assertEqual(loader.bucket_rounding, self.kwargs["bucket_rounding"])
 
         with self.assertRaises(ValueError) as context:
             loader.bucket_rounding = "foo"
-
         self.assertTrue(
-            "bucket_rounding should be equal to either 'ceil',"
-            "'floor', or 'trunc'" in str(context.exception)
+            "bucket_rounding should be equal to either 'ceil' or 'floor'"
+            in str(context.exception)
         )
 
-        with self.assertRaises(NotImplementedError) as context:
-            loader.bucket_rounding = "trunc"
-
-        self.assertTrue("Not implemented yet :( " in str(context.exception))
-
-        # exposures
+    def test_properties_exposures(self):
+        loader = ConvSccsLoader(**self.kwargs)
         exposures_ = loader.exposures
         self.assertTrue(
             data_frame_equality(exposures_.subjects, self.exposures.subjects)
         )
         self.assertTrue(data_frame_equality(exposures_.events, self.exposures.events))
 
+        mock_dataframe = MagicMock()
+        mock_dataframe.take = lambda x: True
+        mock_cohort = MagicMock()
+        mock_cohort.subjects = mock_dataframe
+        mock_cohort.events = mock_dataframe
         with patch.object(
-            ConvSccsLoader, "_check_event_dates_consistency_w_followup_bounds"
-        ) as mocked_method:
-            loader_ = ConvSccsLoader(**self.kwargs)
-            loader_.run_checks = True
-            loader_.exposures = "foo"  # Just use some other cohort
-            self.assertEqual(loader_.exposures, "foo")
-            mocked_method.assert_called_once_with("foo")
+            ConvSccsLoader,
+            "_find_events_not_in_followup_bounds",
+            return_value=mock_cohort,
+        ) as mock_find_events:
+            with patch.object(
+                ConvSccsLoader,
+                "_log_invalid_events_cohort",
+                return_value="Ooops, error here!",
+            ) as mock_log_invalid:
+                loader_ = ConvSccsLoader(**self.kwargs)
+                loader_.run_checks = True
+                with self.assertRaises(ValueError) as context:
+                    loader_.exposures = mock_cohort
+                mock_find_events.assert_called_once_with(mock_cohort)
+                mock_log_invalid.assert_called_once_with(
+                    mock_cohort, log_invalid_events=True
+                )
+                self.assertTrue("Ooops, error here!" == str(context.exception))
 
-        # outcomes
+    def test_properties_outcomes(self):
+        loader = ConvSccsLoader(**self.kwargs)
         outcomes_ = loader.outcomes
         self.assertTrue(data_frame_equality(outcomes_.subjects, self.outcomes.subjects))
-        self.assertTrue(
-            data_frame_equality(
-                outcomes_.events,
-                self.outcomes.events.groupby(
-                    "patientID", "category", "groupID", "value", "weight"
-                )
-                .agg(sf.min("start").alias("start"), sf.min("end").alias("end"))
-                .select(
-                    "patientID",
-                    "start",
-                    "end",
-                    "category",
-                    "groupID",
-                    "value",
-                    "weight",
-                ),
-            )
+        self.assertTrue(data_frame_equality(outcomes_.events, self.outcomes.events))
+
+        loader_ = ConvSccsLoader(**self.kwargs)
+        loader_.run_checks = True
+
+        bad_outcomes_df, _ = self.create_spark_df(
+            {
+                "patientID": ["0", "4"],  # uuid
+                "start": [
+                    pytz.datetime.datetime(2010, 6, 8, tzinfo=pytz.UTC),
+                    pytz.datetime.datetime(2011, 3, 29, tzinfo=pytz.UTC),
+                ],
+                "end": [None, pytz.datetime.datetime(2010, 11, 24, tzinfo=pytz.UTC)],
+                "value": ["bar", "baz"],
+                "category": ["outcome"] * 2,
+                "groupID": [0] * 2,
+                "weight": [1] * 2,
+            }
+        )
+        bad_outcomes_cohort = Cohort(
+            "", "", bad_outcomes_df.select("patientID").distinct(), bad_outcomes_df
         )
 
+        with self.assertRaises(AssertionError) as context:
+            loader_.outcomes = bad_outcomes_cohort
+
+        self.assertTrue(
+            "There are more than one type of outcomes, check the 'value' field of "
+            "outcomes cohort events." in str(context.exception)
+        )
+
+        mock_dataframe = MagicMock()
+        mock_dataframe.take = lambda x: True
+        mock_cohort = MagicMock()
+        mock_cohort.subjects = mock_dataframe
+        mock_cohort.events = mock_dataframe
+        mock_empty_df = MagicMock()
+        mock_empty_df.take = lambda x: []
+        mock_empty_cohort = MagicMock
+        mock_empty_cohort.subjects = mock_empty_df
+        mock_empty_cohort.events = mock_empty_df
         with patch.object(
-            ConvSccsLoader, "_check_event_dates_consistency_w_followup_bounds"
-        ) as mocked_method:
-            loader_ = ConvSccsLoader(**self.kwargs)
-            loader_.run_checks = True
-            loader_.outcomes = self.outcomes
-            mocked_method.assert_called_once_with(self.outcomes)
-
-            new_outcomes = copy(self.outcomes)
-            new_outcomes.events = (
-                new_outcomes.events.groupby(
-                    "patientID", "category", "groupID", "value", "weight"
+            ConvSccsLoader,
+            "_log_invalid_events_cohort",
+            return_value="Ooops, error here!",
+        ) as mock_log_invalid:
+            with patch.object(
+                ConvSccsLoader,
+                "_find_events_not_in_followup_bounds",
+                return_value=mock_cohort,
+            ) as mock_find_events_outcome_bounds:
+                loader = ConvSccsLoader(**self.kwargs)
+                loader.run_checks = True
+                with self.assertRaises(ValueError) as context:
+                    loader.outcomes = self.outcomes
+                mock_find_events_outcome_bounds.assert_called_once_with(self.outcomes)
+                mock_log_invalid.assert_called_once_with(
+                    mock_cohort, log_invalid_events=True
                 )
-                .agg(sf.min("start").alias("start"), sf.min("end").alias("end"))
-                .select(
-                    "patientID",
-                    "start",
-                    "end",
-                    "category",
-                    "groupID",
-                    "value",
-                    "weight",
-                )
-            )
+                self.assertTrue("Ooops, error here!" == str(context.exception))
+        with patch.object(
+            ConvSccsLoader,
+            "_log_invalid_events_cohort",
+            return_value="Ooops, error here!",
+        ) as mock_log_invalid:
+            with patch.object(
+                ConvSccsLoader,
+                "_find_events_not_in_followup_bounds",
+                return_value=mock_empty_cohort,
+            ) as mock_did_not_find_outcome_bounds:
+                with patch.object(
+                    ConvSccsLoader,
+                    "_find_subjects_with_many_outcomes",
+                    return_value=mock_cohort,
+                ) as mock_find_many_outcomes:
+                    loader = ConvSccsLoader(**self.kwargs)
+                    loader.run_checks = True
+                    with self.assertRaises(ValueError) as context:
+                        loader.outcomes = self.outcomes
+                    mock_did_not_find_outcome_bounds.assert_called_once_with(
+                        self.outcomes
+                    )
+                    mock_find_many_outcomes.assert_called_once_with(self.outcomes)
+                    mock_log_invalid.assert_called_once_with(
+                        mock_cohort, log_invalid_subjects=True
+                    )
+                    self.assertTrue("Ooops, error here!" == str(context.exception))
 
-            self.assertTrue(
-                data_frame_equality(loader_.outcomes.subjects, new_outcomes.subjects)
-            )
-            self.assertTrue(
-                data_frame_equality(loader_.outcomes.events, new_outcomes.events)
-            )
-
-        # features
+    def test_properties_features(self):
         with patch.object(
             ConvSccsLoader, "_load_features", return_value="some features"
         ) as mocked_method:
             loader_ = ConvSccsLoader(**self.kwargs)
-            self.assertEqual(loader_.features, "some features")
-            mocked_method.assert_called_once()
+            result = loader_.features
+            mocked_method.assert_called_once_with()
+            self.assertEqual(result, "some features")
 
-            with self.assertRaises(NotImplementedError) as context:
+            with self.assertRaises(PermissionError) as context:
                 loader_.features = "some value"
-
             self.assertTrue(
                 "features should not be set manually,"
                 "they are computed from initial cohorts." in str(context.exception)
             )
 
-        # labels
+    def test_properties_labels(self):
         with patch.object(
             ConvSccsLoader, "_load_labels", return_value="some labels"
         ) as mocked_method:
             loader_ = ConvSccsLoader(**self.kwargs)
             self.assertEqual(loader_.labels, "some labels")
-            mocked_method.assert_called_once()
+            mocked_method.assert_called_once_with()
 
-            with self.assertRaises(NotImplementedError) as context:
+            with self.assertRaises(PermissionError) as context:
                 loader_.labels = "some value"
 
             self.assertTrue(
@@ -313,26 +360,39 @@ class TestConvSccsLoader(PySparkTest):
                 "they are computed from initial cohorts." in str(context.exception)
             )
 
-        # censoring
+    def test_properties_censoring(self):
         with patch.object(
             ConvSccsLoader, "_load_censoring", return_value="some censoring"
         ) as mocked_method:
             loader_ = ConvSccsLoader(**self.kwargs)
             self.assertEqual(loader_.censoring, "some censoring")
-            mocked_method.assert_called_once()
+            mocked_method.assert_called_once_with()
 
-            with self.assertRaises(NotImplementedError) as context:
+            with self.assertRaises(PermissionError) as context:
                 loader_.censoring = "some value"
-
             self.assertTrue(
                 "censoring should not be set manually,"
                 "it is computed from initial cohorts." in str(context.exception)
             )
 
-        # final_cohort
-        with self.assertRaises(NotImplementedError) as context:
-            loader.final_cohort = "some value"
+    def test_properties_mapping(self):
+        loader = ConvSccsLoader(**self.kwargs)
+        loader._feature_mapping = ["feature 1", "feature 2"]
+        loader._outcome_mapping = ["outcome 1"]
+        self.assertListEqual(loader.mappings[0], ["feature 1", "feature 2"])
+        self.assertListEqual(loader.mappings[1], ["outcome 1"])
 
+        with self.assertRaises(PermissionError) as context:
+            loader.mappings = "some value"
+        self.assertTrue(
+            "mappings should not be set manually,"
+            "they are computed from initial cohorts." in str(context.exception)
+        )
+
+    def test_properties_final_cohort(self):
+        loader = ConvSccsLoader(**self.kwargs)
+        with self.assertRaises(PermissionError) as context:
+            loader.final_cohort = "some value"
         self.assertTrue(
             "final_cohort should not be set manually,"
             "it is computed from initial cohorts." in str(context.exception)
@@ -350,11 +410,46 @@ class TestConvSccsLoader(PySparkTest):
                 "base_population", "base_population", patients_wo_events, None
             )
             loader.final_cohort.subjects.count()
-
         self.assertTrue(
             "Final cohort is empty, please check that "
             "the intersection of the provided cohorts "
             "is nonempty" in str(context.exception)
+        )
+
+    def test_properties_exposures_split_column(self):
+        loader = ConvSccsLoader(**self.kwargs)
+        self.assertEqual(loader.exposures_split_column, "value")
+        with self.assertRaises(ValueError) as context:
+            loader.exposures_split_column = "foo"
+        self.assertTrue(
+            "exposures_split_column should be either 'category', 'groupID', or 'value'"
+            in str(context.exception)
+        )
+
+    def test_properties_outcomes_split_column(self):
+        loader = ConvSccsLoader(**self.kwargs)
+        self.assertEqual(loader.outcomes_split_column, "value")
+        with self.assertRaises(ValueError) as context:
+            loader.outcomes_split_column = "foo"
+        self.assertTrue(
+            "outcomes_split_column should be either 'category', 'groupID', or 'value'"
+            in str(context.exception)
+        )
+
+    def test_get_bucketized_events(self):
+        kwargs = copy(self.kwargs)
+        kwargs["bucket_size"] = 365
+        loader = ConvSccsLoader(**kwargs)
+        features_, n_cols, mapping = loader._get_bucketized_events(
+            loader.exposures, "value"
+        )
+
+        expected = np.array([[0, 0, 0], [3, 1, 0], [4, 1, 0], [2, 0, 0]]).astype("int")
+
+        self.assertEqual(n_cols, 1)
+        self.assertListEqual(mapping, ["foo"])
+        np.testing.assert_array_equal(
+            features_.toPandas().values.astype("int"), expected
         )
 
     def test_compute_longitudinal_age_groups(self):
@@ -370,7 +465,6 @@ class TestConvSccsLoader(PySparkTest):
                 None,
             )
             _ = loader._compute_longitudinal_age_groups(bad_cohort, col_offset=int(2))
-
         self.assertTrue(
             "Cohort subjects should have gender and birthdate information"
             in str(context.exception)
@@ -387,34 +481,25 @@ class TestConvSccsLoader(PySparkTest):
             "[75.0, 80.0)",
             "[80.0, 85.0)",
         ]
-        expected_data = [
-            [0, 0, 6],
-            [0, 1, 6],
-            [0, 2, 6],
-            [0, 3, 7],
-            [1, 0, 3],
-            [1, 1, 3],
-            [1, 2, 3],
-            [1, 3, 3],
-            [2, 0, 4],
-            [2, 1, 5],
-            [2, 2, 5],
-            [2, 3, 5],
-            [3, 0, 6],
-            [3, 1, 6],
-            [3, 2, 6],
-            [3, 3, 7],
-            [4, 0, 5],
-            [4, 1, 5],
-            [4, 2, 6],
-            [4, 3, 6],
-        ]
-
-        expected_df = pd.DataFrame(
-            expected_data, columns=["patientID", "rowIndex", "colIndex"], dtype="int"
-        )
+        expected_data = np.array(
+            [
+                [3, 1, 6],
+                [0, 0, 6],
+                [0, 1, 6],
+                [0, 2, 6],
+                [0, 3, 7],
+                [4, 1, 5],
+                [4, 2, 6],
+                [2, 0, 4],
+                [2, 1, 5],
+                [2, 2, 5],
+                [2, 3, 5],
+            ]
+        ).astype("int")
         self.assertListEqual(mapping, expected_mapping)
-        assert_frame_equal(features.toPandas().astype("int"), expected_df)
+        np.testing.assert_array_equal(
+            features.toPandas().values.astype("int"), expected_data
+        )
 
     def test_load_features(self):
         kwargs = copy(self.kwargs)
@@ -547,14 +632,12 @@ class TestConvSccsLoader(PySparkTest):
 
         with self.assertRaises(ValueError) as context:
             loader._get_csr_matrices(no_row_index_df, csr_shape)
-
         self.assertTrue(
             "rowIndex should be in events columns." in str(context.exception)
         )
 
         with self.assertRaises(ValueError) as context:
             loader._get_csr_matrices(no_col_index_df, csr_shape)
-
         self.assertTrue(
             "colIndex should be in events columns." in str(context.exception)
         )
@@ -583,3 +666,48 @@ class TestConvSccsLoader(PySparkTest):
         self.assertTrue(np.array_equal(m.toarray(), expected))
         self.assertTrue(m.shape == (5, 2))
         self.assertTrue(type(m) == csr_matrix)
+
+    def test_find_subjects_with_many_outcomes(self):
+        invalid_events = {
+            "patientID": ["0", "0", "1", "1", "2"],  # uuid
+            "start": [
+                pytz.datetime.datetime(1934, 7, 27, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2012, 7, 27, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2017, 7, 27, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2012, 7, 27, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2011, 7, 27, tzinfo=pytz.UTC),
+            ],
+            "end": [
+                pytz.datetime.datetime(2012, 10, 12, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2006, 6, 20, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2012, 10, 12, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2014, 6, 20, tzinfo=pytz.UTC),
+                pytz.datetime.datetime(2012, 7, 27, tzinfo=pytz.UTC),
+            ],
+            "value": [0, 1, 2, 3, 4],
+        }
+
+        invalid_df, _ = self.create_spark_df(invalid_events)
+        invalid_cohort = Cohort(
+            "some_cohort", "Some cohort", invalid_df.select("patientID"), invalid_df
+        )
+
+        loader = ConvSccsLoader(**self.kwargs)
+        invalid = loader._find_subjects_with_many_outcomes(invalid_cohort)
+
+        self.assertEqual(
+            invalid.name, "some_cohort_inconsistent_w_single_outcome_constraint"
+        )
+        self.assertEqual(
+            invalid.describe(),
+            "Events are some_cohort_inconsistent_w_single_outcome_constraint. Events "
+            "contain only events showing there are more than one outcome per patient.",
+        )
+        self.assertListEqual(
+            sorted(invalid.subjects.toPandas().values.ravel().tolist()),
+            sorted(["0", "1"]),
+        )
+        self.assertListEqual(
+            sorted(invalid.events.toPandas().value.values.ravel().tolist()),
+            sorted([0, 1, 2, 3]),
+        )

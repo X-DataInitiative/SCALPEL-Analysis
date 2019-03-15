@@ -15,7 +15,7 @@ repos:
     hooks:
     - id: nosetests
       name: nosetests
-      entry: bash -ec 'nosetests --with-coverage --cover-package=src/exploration/core'
+      entry: bash -ec 'nosetests --with-coverage --cover-package=src/exploration/core --cover-package=src/exploration/loaders'
       language: system
       files: \.py$
 -   repo: local
