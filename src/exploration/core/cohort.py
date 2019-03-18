@@ -87,13 +87,13 @@ class Cohort(object):
     def describe(self) -> str:
         if self.events is None:
             return (
-                "This a subject cohort, no event needed"
-                + "Subjects are from operation {}".format(self.name)
+                "This a subject cohort, no event needed. "
+                + "Subjects are from operation {}.".format(self.name)
             )
         else:
-            return "Events are {}.".format(self.name) + "Events contain only {}".format(
-                self.characteristics
-            )
+            return "Events are {}. ".format(
+                self.name
+            ) + "Events contain only {}.".format(self.characteristics)
 
     def has_subject_information(self) -> bool:
         """Returns true if this cohort is the Base Cohort. The base population contains
