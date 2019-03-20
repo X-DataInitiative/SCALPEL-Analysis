@@ -347,7 +347,7 @@ class ConvSccsLoader(BaseLoader):
         self, cohort: Cohort, split_column: str
     ) -> Tuple[DataFrame, int, List[str]]:
         events = self._discretize_start_end(cohort.events).select(
-            "patientID", "value", "startBucket", "endBucket"
+            "patientID", split_column, "startBucket", "endBucket"
         )
         events, n_cols, mapping = index_string_column(events, split_column, "colIndex")
 
