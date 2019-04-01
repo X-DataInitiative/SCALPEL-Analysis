@@ -30,6 +30,12 @@ clean-test:
 	rm -f .coverage
 	rm -fr htmlcov/
 
+clean-deps:
+	rm -rf ./src/libs
+
+install-deps:
+	pip install -U -r requirements.txt -t ./src/libs
+
 deps: .venv
 	. .venv/bin/activate && pip install -U -r requirements.txt -t ./src/libs
 
@@ -44,6 +50,5 @@ test:
 
 build: clean
 	mkdir ./dist
-	cp ./src/main.py ./dist
-	cd ./src && zip -x main.py -x \*libs\* -r ../dist/jobs.zip .
+	zip -x main.py -x \*libs\* -r ./dist/exploration.zip .
 	cd ./src/libs && zip -r ../../dist/libs.zip .
