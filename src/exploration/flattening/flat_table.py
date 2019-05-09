@@ -11,25 +11,26 @@ class FlatTable:
     """This object encapsulate flat table which represent a date set of SNIIRAM database
     """
 
-    def __init__(self, name: str,
-                 source: DataFrame,
-                 characteristics:
-                 str, join_keys: List[str]):
-        assert name, "Name can't be empty"
+    def __init__(
+        self, name: str, source: DataFrame, characteristics: str, join_keys: List[str]
+    ):
+        assert isinstance(name, str), "Name should be a str"
         assert isinstance(source, DataFrame), "Source should be a spark data frame"
-        assert characteristics, "Characteristics can't be empty"
-        assert join_keys, "Join keys can't be empty"
+        assert isinstance(characteristics, str), "Characteristics should be a str"
+        assert isinstance(join_keys, List), "Join keys should be a list"
         self._name = name
         self._df = source
         self._chs = characteristics
         self._jk = join_keys
 
     @staticmethod
-    def from_json(json_content: Dict) -> 'FlatTable':
-        return FlatTable(json_content['name'],
-                         read_data_frame(json_content['path']),
-                         json_content['name'],
-                         json_content['join_keys'])
+    def from_json(json_content: Dict) -> "FlatTable":
+        return FlatTable(
+            json_content["name"],
+            read_data_frame(json_content["path"]),
+            json_content["name"],
+            json_content["join_keys"],
+        )
 
     @property
     def name(self) -> str:
@@ -72,42 +73,59 @@ class FlatTable:
         self._jk = value
 
     def __eq__(self, other):
-        if isinstance(other, FlatTable) and _is_same_struct_type(self.source, other.source):
+        if isinstance(other, FlatTable) and _is_same_struct_type(
+            self.source, other.source
+        ):
             return data_frame_equality(self.source, other.source)
         else:
             return False
 
     def __contains__(self, item):
-        if isinstance(item, FlatTable) and _is_same_struct_type(self.source, item.source):
-            c1 = self.source.count()
-            c2 = item.source.count()
+        if isinstance(item, FlatTable) and _is_same_struct_type(
+            self.source, item.source
+        ):
+            df1 = self.source.distinct().cache()
+            df2 = item.source.distinct().cache()
+            c1 = df1.count()
+            c2 = df2.count()
             diff = c1 - c2
             if c1 - c2 >= 0:
-                return self.source.subtract(item.source).count() - diff == 0
+                return df1.subtract(df2).count() - diff == 0
             else:
                 return False
         else:
             return False
 
-    def union(self, other: 'FlatTable') -> 'FlatTable':
+    def __getitem__(self, item):
+        if not isinstance(item, str):
+            raise TypeError("Expected a str")
+        self._df.createOrReplaceTempView(self.name)
+        sql_statement = "SELECT {} FROM {}".format(item, self.name)
+        return self._df.sql_ctx.sql(sql_statement)
+
+    def union(self, other: "FlatTable") -> "FlatTable":
         return _union(self, other)
 
-    def intersection(self, other: 'FlatTable') -> 'FlatTable':
+    def intersection(self, other: "FlatTable") -> "FlatTable":
         return _intersection(self, other, self._jk)
 
-    def difference(self, other: 'FlatTable') -> 'FlatTable':
+    def difference(self, other: "FlatTable") -> "FlatTable":
         return _difference(self, other, self._jk)
 
     @staticmethod
-    def union_all(flat_tables: Iterable['FlatTable']) -> 'FlatTable':
+    def union_all(flat_tables: Iterable["FlatTable"]) -> "FlatTable":
         return fold_right(_union, flat_tables)
 
     @staticmethod
-    def intersection_all(flat_tables: Iterable['FlatTable'], join_keys: List[str]) -> 'FlatTable':
+    def intersection_all(
+        flat_tables: Iterable["FlatTable"], join_keys: List[str]
+    ) -> "FlatTable":
         return fold_right(partial(_intersection, join_keys=join_keys), flat_tables)
 
     @staticmethod
-    def difference_all(flat_tables: Iterable['FlatTable'], join_keys: List[str]) -> 'FlatTable':
+    def difference_all(
+        flat_tables: Iterable["FlatTable"], join_keys: List[str]
+    ) -> "FlatTable":
         return fold_right(partial(_difference, join_keys=join_keys), flat_tables)
 
 
@@ -119,34 +137,34 @@ def _is_same_struct_type(a: DataFrame, b: DataFrame) -> bool:
 
 def _union(a: FlatTable, b: FlatTable) -> FlatTable:
     if not _is_same_struct_type(a.source, b.source):
-        raise ValueError("2 flat tables are not same struct type")
+        raise ValueError("The passed tables do not share the same schema")
     return FlatTable(
         "{} Or {}".format(a.name, b.name),
         a.source.union(b.source),
         "{} Or {}".format(a.characteristics, b.characteristics),
-        a.join_keys
+        a.join_keys,
     )
 
 
 def _intersection(a: FlatTable, b: FlatTable, join_keys: List[str]) -> FlatTable:
     if not _is_same_struct_type(a.source, b.source):
-        raise ValueError("2 flat tables are not same struct type")
+        raise ValueError("The passed tables do not share the same schema")
     intersect_keys = a.source.select(join_keys).intersect(b.source.select(join_keys))
     return FlatTable(
         "{} with {}".format(a.name, b.name),
         a.source.join(intersect_keys, on=join_keys, how="inner"),
         "{} with {}".format(a.characteristics, b.characteristics),
-        join_keys
+        join_keys,
     )
 
 
 def _difference(a: FlatTable, b: FlatTable, join_keys: List[str]) -> FlatTable:
     if not _is_same_struct_type(a.source, b.source):
-        raise ValueError("2 flat tables are not same struct type")
+        raise ValueError("The passed tables do not share the same schema")
     difference_keys = a.source.select(join_keys).subtract(b.source.select(join_keys))
     return FlatTable(
         "{} without {}".format(a.name, b.name),
         a.source.join(difference_keys, on=join_keys, how="inner"),
         "{} without {}".format(a.characteristics, b.characteristics),
-        join_keys
+        join_keys,
     )

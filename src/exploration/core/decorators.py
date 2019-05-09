@@ -9,8 +9,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from src.exploration.core.io import get_logger
 from src.exploration.stats.graph_utils import format_title
 
-CONTEXT_SEABORN = 'seaborn'
-CONTEXT_PYPLOT = 'pyplot'
+CONTEXT_SEABORN = "seaborn"
+CONTEXT_PYPLOT = "pyplot"
 _CONTEXT_RUN_DECORATOR_AFTER = frozenset([CONTEXT_SEABORN])
 _CONTEXT_RUN_DECORATOR_BEFORE = frozenset([CONTEXT_PYPLOT])
 
@@ -129,7 +129,9 @@ def show_labels(frequency, context=CONTEXT_PYPLOT):
     def decorate(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            with _before_or_after_by_context(set_xaxis_labels_visibility, context, frequency):
+            with _before_or_after_by_context(
+                set_xaxis_labels_visibility, context, frequency
+            ):
                 res = f(*args, **kwargs)
             return res
 
@@ -220,7 +222,8 @@ def millify(x, pos):
         return "{:.0f}{}".format(x / 10 ** (3 * millidx), millnames[millidx])
 
 
-def save_plots(plot_functions, path, cohort, figsize=(8, 5), **kwargs):
+def save_plots(plot_functions, path, cohorts, figsize=(8, 5), **kwargs):
     with PdfPages(path) as pdf:
-        for p in plot_functions:
-            saver(pdf, figsize=figsize)(p)(cohort=cohort, **kwargs)
+        for cohort in cohorts:
+            for p in plot_functions:
+                saver(pdf, figsize=figsize)(p)(cohort=cohort, **kwargs)

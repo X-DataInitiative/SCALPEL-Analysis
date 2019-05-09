@@ -75,4 +75,4 @@ def distribution_by_gender_age_bucket(figure, cohort):
 
 
 def save_patients_stats(path, cohort):
-    save_plots(registry, path, cohort)
+    save_plots(registry, path, list(cohort))

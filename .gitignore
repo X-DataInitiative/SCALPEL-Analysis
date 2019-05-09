@@ -9,3 +9,5 @@ test\.py
 *.pyc
 
 *.log
+
+\.coverage
