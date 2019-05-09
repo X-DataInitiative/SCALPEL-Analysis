@@ -30,7 +30,7 @@ jobs:
           command: |
             eval "$(pyenv init -)"
             pyenv local 3.5.3
-            cat /dev/null | python -m nose --with-coverage --cover-package=src/exploration/core --cover-package=src/exploration/loaders
+            cat /dev/null | python -m nose --with-coverage --cover-package=src/exploration/core --cover-package=src/exploration/loaders --cover-package=src/exploration/flattening
 
       - run:
           name: Run coverage

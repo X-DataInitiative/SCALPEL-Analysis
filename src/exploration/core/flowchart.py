@@ -10,7 +10,7 @@ def metadata_from_flowchart(metadata: Metadata, flowchart_json: str) -> Metadata
     flowchart_description = json.loads(flowchart_json)
     intermediate = flowchart_description[
         "intermediate_operations"
-    ]  # type: Dict[str, Dict]
+    ]  # type: Dict[str, Dict] # noqa：F821
     updated_metadata = copy(metadata)
     for (_, description) in intermediate.items():
         new_cohort = metadata.get_from_description(description)

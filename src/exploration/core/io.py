@@ -32,4 +32,4 @@ def get_spark_context():
 
 
 def read_data_frame(filepath: str) -> DataFrame:
-    return get_spark_context().read.parquet(filepath).cache()
+    return get_spark_context().read.parquet(filepath)
