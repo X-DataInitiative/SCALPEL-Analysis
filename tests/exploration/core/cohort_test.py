@@ -1,6 +1,7 @@
 from datetime import datetime
 from collections import OrderedDict
 import pandas as pd
+from unittest.mock import patch
 from pyspark.sql.types import IntegerType, StructField, StructType, TimestampType
 
 from src.exploration.core.cohort import Cohort
@@ -266,3 +267,31 @@ class TestCohort(PySparkTest):
 
         cohort2 = Cohort("patients", "patients", patients, events)
         self.assertFalse(cohort2.is_duration_events())
+
+    @patch("src.exploration.core.io.write_data_frame", return_value=None)
+    def test_save_cohort(self, mock_method):
+        df, _ = self.create_spark_df({"patientID": [1, 2]})
+        cohort = Cohort("test", "test", df, None)
+        self.assertEqual(
+            {
+                "name": "test",
+                "output_path": "../../output/test/subjects",
+                "output_type": "patients",
+            },
+            cohort.save_cohort("../../output"),
+        )
+
+        df_events, _ = self.create_spark_df(
+            {"patientID": [1, 2], "category": ["test", "test"]}
+        )
+
+        cohort_2 = Cohort("events", "events", df, df_events)
+        self.assertEqual(
+            {
+                "name": "events",
+                "output_path": "../../output/events/data",
+                "population_path": "../../output/events/subjects",
+                "output_type": "events",
+            },
+            cohort_2.save_cohort("../../output"),
+        )

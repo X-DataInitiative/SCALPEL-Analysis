@@ -1,10 +1,13 @@
 from unittest.mock import patch
 
+from src.exploration.core.cohort import Cohort
 from src.exploration.core.metadata import Metadata
 from .pyspark_tests import PySparkTest
 
 
 class TestMetadata(PySparkTest):
+    maxDiff = None
+
     @patch("src.exploration.core.cohort.read_data_frame")
     def test_from_json(self, mock_read_data_frame):
         mock_read_data_frame.return_value = self.create_spark_df({"patientID": [1, 2]})
@@ -158,3 +161,35 @@ class TestMetadata(PySparkTest):
         result = Metadata.intersect_all([meta1, meta2, meta3])
         expected_cohorts = {"extract_patients"}
         self.assertSetEqual(expected_cohorts, result.cohorts_names())
+
+    @patch("src.exploration.core.io.write_data_frame", return_value=None)
+    def test_dump_metadata(self, mock_writing):
+        df, _ = self.create_spark_df({"patientID": [1, 2]})
+        cohort_1 = Cohort("test", "test", df, None)
+        df_events, _ = self.create_spark_df(
+            {"patientID": [1, 2], "category": ["test", "test"]}
+        )
+
+        cohort_2 = Cohort("events", "events", df, df_events)
+
+        meta = Metadata({"test": cohort_1, "events": cohort_2})
+        expected = sorted(
+            {
+                "operations": [
+                    {
+                        "output_type": "events",
+                        "name": "events",
+                        "output_path": "../../output/events/data",
+                        "population_path": "../../output/events/subjects",
+                    },
+                    {
+                        "output_type": "patients",
+                        "output_path": "../../output/test/subjects",
+                        "name": "test",
+                    },
+                ]
+            }
+        )
+
+        result = sorted(meta.dump_metadata("../../output"))
+        self.assertEqual(expected, result)

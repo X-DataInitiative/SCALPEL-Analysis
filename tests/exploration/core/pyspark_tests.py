@@ -26,10 +26,6 @@ class PySparkTest(unittest.TestCase):
         cls.spark = cls.create_testing_pyspark_session()
         cls.spark.conf.set("spark.sql.session.timeZone", "UTC")
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.spark.stop()
-
     def create_spark_df(self, data: Dict):
         # Warning: if you want to be sure of colums ordering, use and OrderedDict
         df = pd.DataFrame(data, columns=data.keys())
