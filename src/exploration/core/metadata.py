@@ -115,6 +115,33 @@ class Metadata:
     def __iter__(self):
         return iter(self.cohorts)
 
+    def dump_metadata(self, output_directory: str, mode="overwrite") -> Dict:
+        """Dump the current the Metadata object to the output directory. Loops through
+        the Cohorts, and for each writes it "output_directory/cohort_name".
+
+        Parameters
+        ----------
+        output_directory
+            Path to the root directory.
+        mode
+            Writing mode for parquet files.
+            * ``append``: Append contents of this :class:`DataFrame` to existing data.
+            * ``overwrite``(default case): Overwrite existing data.
+            * ``ignore``: Silently ignore this operation if data already exists.
+            * ``error`` or ``errorifexists``: Throw an exception if data already \
+                exists.
+        Returns
+        -------
+            Dict with one entry operations that contains a list of dict, one dict for
+            each Cohort.
+        """
+        operations = list()
+
+        for name, cohort in self.cohorts.items():
+            operations.append(cohort.save_cohort(output_directory, mode))
+
+        return {"operations": operations}
+
 
 def _union(a, b) -> Metadata:
     new_dict = copy.copy(a.cohorts)

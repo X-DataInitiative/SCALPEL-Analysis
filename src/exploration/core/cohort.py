@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import Dict, Iterable
+from os.path import join
 
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, datediff, floor, lit, months_between
 
 from src.exploration.core.io import get_logger, read_data_frame
+from src.exploration.core import io
 from src.exploration.core.util import data_frame_equality
 from .util import fold_right
 
@@ -188,6 +190,42 @@ class Cohort(object):
                 "This Cohort is not a duration events cohort",
                 " please check is_duration_events method",
             )
+
+    def save_cohort(self, output_path: str, mode="overwrite") -> Dict:
+        """Saves current Cohort to "output_path/name".
+
+        Parameters
+        ----------
+        output_path
+            root directory for output.
+        mode
+            Writing mode for parquet files.
+            * ``append``: Append contents of this :class:`DataFrame` to existing data.
+            * ``overwrite``(default case): Overwrite existing data.
+            * ``ignore``: Silently ignore this operation if data already exists.
+            * ``error`` or ``errorifexists``: Throw an exception if data already \
+                exists.
+        Returns
+        -------
+            A dict with entries to describe where the data is written and the type of the
+            Cohort.
+        """
+        output = dict()
+        subjects_filepath = join(output_path, self.name, "subjects")
+        io.write_data_frame(self.subjects, subjects_filepath, mode)
+        if self.events is not None:
+            events_filtepath = join(output_path, self.name, "data")
+            io.write_data_frame(self.events, events_filtepath, mode)
+            output["population_path"] = subjects_filepath
+            output["output_path"] = events_filtepath
+            output["name"] = self.name
+            output["output_type"] = "events"
+        else:
+            output["output_path"] = subjects_filepath
+            output["name"] = self.name
+            output["output_type"] = "patients"
+
+        return output
 
     def union(self, other: "Cohort") -> "Cohort":
         return _union(self, other)

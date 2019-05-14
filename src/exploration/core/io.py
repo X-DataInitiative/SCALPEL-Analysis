@@ -33,3 +33,7 @@ def get_spark_context():
 
 def read_data_frame(filepath: str) -> DataFrame:
     return get_spark_context().read.parquet(filepath)
+
+
+def write_data_frame(dataframe: DataFrame, filepath: str, mode="overwrite") -> None:
+    return dataframe.write.parquet(filepath, mode)
