@@ -26,9 +26,9 @@ class FlatTable:
     @staticmethod
     def from_json(json_content: Dict) -> "FlatTable":
         return FlatTable(
-            json_content["name"],
-            read_data_frame(json_content["path"]),
-            json_content["name"],
+            json_content["output_table"],
+            read_data_frame(json_content["output_path"]),
+            json_content["output_table"],
             json_content["join_keys"],
         )
 

@@ -20,15 +20,15 @@ class TestFlatTableMetadata(PySparkTest):
         json = """
         {
           "class_name" : "fr.polytechnique.cmap.cnam.flattening.FlatteningMain$",
-          "flat_tables" : [
+          "operations" : [
           {
-            "name" : "DCIR",
-            "path" : "/user/ds/CNAM378/flattening/2019_02_25/flat_table/DCIR",
+            "output_table" : "DCIR",
+            "output_path" : "/user/ds/CNAM378/flattening/2019_02_25/flat_table/DCIR",
             "join_keys" : ["NUM_ENQ", "EXE_SOI_DTD"]
           },
           {
-            "name" : "MCO",
-            "path" : "/user/ds/CNAM378/flattening/2019_02_25/flat_table/DCIR",
+            "output_table" : "MCO",
+            "output_path" : "/user/ds/CNAM378/flattening/2019_02_25/flat_table/DCIR",
             "join_keys" : ["NUM_ENQ", "EXE_SOI_DTD"]
           }]
         }

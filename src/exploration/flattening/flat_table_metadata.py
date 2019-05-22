@@ -17,9 +17,9 @@ class FlatTableMetadata:
     @staticmethod
     def from_json(json_file: str) -> "FlatTableMetadata":
         metadata_json = json.loads(json_file)
-        tables = metadata_json["flat_tables"]
+        tables = metadata_json["operations"]
         return FlatTableMetadata(
-            {table["name"]: FlatTable.from_json(table) for table in tables}
+            {table["output_table"]: FlatTable.from_json(table) for table in tables}
         )
 
     @property
