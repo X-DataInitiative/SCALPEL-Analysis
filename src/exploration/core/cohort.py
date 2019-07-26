@@ -100,12 +100,9 @@ class Cohort(object):
     def has_subject_information(self) -> bool:
         """Returns true if this cohort is the Base Cohort. The base population contains
         extra columns specifically birthDate, deathDate and gender"""
-        return set(self.subjects.columns) == {
-            "gender",
-            "patientID",
-            "deathDate",
-            "birthDate",
-        }
+        return set(self.subjects.columns).issuperset(
+            {"gender", "patientID", "deathDate", "birthDate"}
+        )
 
     def add_subject_information(
         self, base_cohort: "Cohort", missing_patients="error"
