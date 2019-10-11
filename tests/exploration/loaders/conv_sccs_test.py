@@ -101,7 +101,7 @@ class TestConvSccsLoader(PySparkTest):
         patients_df, _ = self.create_spark_df(self.patients)
         fup_events_df, _ = self.create_spark_df(self.followup_events)
         exp_events_df, _ = self.create_spark_df(self.exposure_events)
-        out_events_df, _ = self.create_spark_df(self.exposure_events)
+        out_events_df, _ = self.create_spark_df(self.outcome_events)
 
         self.base_population = Cohort(
             "base_population", "base_population", patients_df, None

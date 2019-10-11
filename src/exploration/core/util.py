@@ -13,8 +13,11 @@ def fold_right(f: Callable, cohorts: Iterable):
 
 
 def data_frame_equality(df1: DataFrame, df2: Optional[DataFrame]) -> bool:
+    df1.schema.fieldNames()
     if isinstance(df1, DataFrame) and (isinstance(df2, DataFrame)):
-        return (df1.subtract(df2).count() == 0) and (df2.subtract(df1).count() == 0)
+        return (df1.subtract(df2.select(df1.schema.fieldNames())).count() == 0) and (
+            df2.subtract(df1.select(df2.schema.fieldNames())).count() == 0
+        )
     else:
         return False
 
