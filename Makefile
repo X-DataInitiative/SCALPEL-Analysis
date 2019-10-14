@@ -1,3 +1,5 @@
+# License: BSD 3 clause
+
 help:
 	@echo "clean - remove all build, test, coverage and Python artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
@@ -50,5 +52,5 @@ test:
 
 build: clean
 	mkdir ./dist
-	zip -x main.py -x \*libs\* -r ./dist/exploration.zip .
+	zip -x main.py -x \*libs\* -r ./dist/scalpel.zip .
 	cd ./src/libs && zip -r ../../dist/libs.zip .

@@ -1,8 +1,6 @@
+.idea/
 
-
-\.idea/
-
-src/libs/
+scalpel/libs/
 
 test\.py
 
@@ -10,4 +8,8 @@ test\.py
 
 *.log
 
-\.coverage
+.coverage
+
+spark-warehouse
+scalpel/__pycache__/
+scalpel/core/__pycache__/
