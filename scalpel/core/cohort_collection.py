@@ -27,6 +27,19 @@ class CohortCollection:
         return iter(self.cohorts)
 
     def __eq__(self, other):
+        """
+        Two CohortCollections are equal only and only if:
+        1. The has the same Cohorts names.
+        2. For each Cohort name, the referred Cohorts are equal as by the definition of
+        equality in the Cohort class.
+        Parameters
+        ----------
+        other the other CohortCollection to compare too.
+
+        Returns
+        -------
+        Boolean
+        """
         if not isinstance(other, CohortCollection):
             return False
         else:
