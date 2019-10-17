@@ -99,7 +99,7 @@ class CohortFlow:
 
     def prepend_cohort(self, input: Cohort) -> "CohortFlow":
         """
-        Create a new Flowchart where input is pre-appended to the existing Flowchart.
+        Create a new CohortFlow where input is pre-appended to the existing Flowchart.
         Parameters
         ----------
         input : Cohort to be pre-appended.
