@@ -26,6 +26,20 @@ class CohortCollection:
     def __iter__(self):
         return iter(self.cohorts)
 
+    def __eq__(self, other):
+        if not isinstance(other, CohortCollection):
+            return False
+        else:
+            if not self.cohorts_names.issuperset(
+                other.cohorts_names
+            ) or not self.cohorts_names.issubset(other.cohorts_names):
+                return False
+            else:
+                for name in self.cohorts_names:
+                    if self.get(name) != other.get(name):
+                        return False
+                return True
+
     @property
     def cohorts_names(self) -> Set[str]:
         return set(self.cohorts.keys())
