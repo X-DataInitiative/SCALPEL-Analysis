@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = src/exploration
+source = scalpel
 
 [report]
 exclude_lines =
@@ -11,6 +11,6 @@ exclude_lines =
 ignore_errors = True
 omit =
 tests/*
-src/libs/*
-src/stats/*
-src/study/*
+scalpel/libs/*
+scalpel/stats/*
+scalpel/study/*
