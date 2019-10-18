@@ -97,16 +97,16 @@ class CohortFlow:
                 new_steps.append(new_steps[-1].intersection(step))
             self.steps = new_steps
 
-    def prepend_cohort(self, input: Cohort) -> "Flowchart":
+    def prepend_cohort(self, input: Cohort) -> "CohortFlow":
         """
-        Create a new Flowchart where input is pre-appended to the existing Flowchart.
+        Create a new CohortFlow where input is pre-appended to the existing Flowchart.
         Parameters
         ----------
         input : Cohort to be pre-appended.
 
         Returns
         -------
-        A new Flowchart object where the new first step is the input Cohort and the
+        A new CohortFlow object where the new first step is the input Cohort and the
         subsequent cohorts are the current cohorts.
         """
         new_steps = [input]

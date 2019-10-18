@@ -200,3 +200,27 @@ class TestCohortCollection(PySparkTest):
 
         result = sorted(cc.save("../../output"))
         self.assertEqual(expected, result)
+
+    def test_eq(self):
+        df, _ = self.create_spark_df({"patientID": [1, 2]})
+        cohort_1 = Cohort("test", "test", df, None)
+        df_events, _ = self.create_spark_df(
+            {"patientID": [1, 2], "category": ["test", "test"]}
+        )
+
+        cohort_2 = Cohort("events", "events", df, df_events)
+
+        cc1 = CohortCollection({"test": cohort_1, "events": cohort_2})
+        cc2 = CohortCollection({"test": cohort_1, "events": cohort_2})
+        self.assertEqual(cc1, cc2)
+
+        cc3 = CohortCollection({"test1": cohort_1, "events": cohort_2})
+        self.assertNotEqual(cc1, cc3)
+
+        df, _ = self.create_spark_df({"patientID": [1, 45]})
+        cohort_3 = Cohort("test", "test", df, None)
+        cc4 = CohortCollection({"test": cohort_3, "events": cohort_2})
+
+        self.assertNotEqual(cc1, cc4)
+
+        self.assertNotEqual(cc1, df)
