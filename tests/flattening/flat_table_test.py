@@ -6,6 +6,7 @@ from collections import OrderedDict
 import pandas as pd
 
 from scalpel.flattening.flat_table import FlatTable
+from scalpel.flattening.single_table import SingleTable
 from tests.core.pyspark_tests import PySparkTest
 
 
@@ -19,7 +20,7 @@ class TestFlatTable(PySparkTest):
                 }
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         with self.assertRaises(TypeError) as context:
             ft1.name = None
         self.assertTrue("Expected a string" in str(context.exception))
@@ -32,6 +33,8 @@ class TestFlatTable(PySparkTest):
         with self.assertRaises(TypeError) as context:
             ft1.join_keys = None
         self.assertTrue("Expected a List" in str(context.exception))
+        with self.assertRaises(TypeError) as context:
+            ft1.single_tables = None
 
     def test_eq(self):
         df1 = self.spark.createDataFrame(
@@ -58,7 +61,7 @@ class TestFlatTable(PySparkTest):
                 }
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         ft2 = copy.copy(ft1)
         ft3 = copy.copy(ft1)
         ft3.name = "FT2"
@@ -95,9 +98,9 @@ class TestFlatTable(PySparkTest):
                 {"NUM_ENQ": ["3", "2"], "EXE_SOI_DTF": ["01/03/2017", "01/02/2016"]}
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"], {})
         self.assertIn(ft2, ft1)
         self.assertNotIn(ft1, ft2)
         self.assertNotIn(ft3, ft1)
@@ -111,10 +114,10 @@ class TestFlatTable(PySparkTest):
                 }
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", ft1["NUM_ENQ"], "FT2", ["NUM_ENQ"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft2 = FlatTable("FT2", ft1["NUM_ENQ"], "FT2", ["NUM_ENQ"], {})
         df3 = self.spark.createDataFrame(pd.DataFrame({"NUM_ENQ": ["1", "2", "3"]}))
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ"])
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ"], {})
         self.assertEqual(ft3, ft2)
         with self.assertRaises(TypeError) as context:
             ft1[1]
@@ -139,9 +142,15 @@ class TestFlatTable(PySparkTest):
                 {"NUM_ENQ": ["3", "2"], "EXE_SOI_DTF": ["01/03/2017", "01/02/2016"]}
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"])
+        single_1 = SingleTable("ST1", df1, "ST1")
+        single_2 = SingleTable("ST2", df2, "ST2")
+        ft1 = FlatTable(
+            "FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {"ST1": single_1}
+        )
+        ft2 = FlatTable(
+            "FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {"ST2": single_2}
+        )
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"], {})
         ft = ft1.union(ft2)
         df4 = self.spark.createDataFrame(
             pd.DataFrame(
@@ -151,7 +160,13 @@ class TestFlatTable(PySparkTest):
                 }
             )
         )
-        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"])
+        expected_ft = FlatTable(
+            "result",
+            df4,
+            "result",
+            ["NUM_ENQ", "EXE_SOI_DTD"],
+            {"ST1": single_1, "ST2": single_2},
+        )
         self.assertEqual(expected_ft, ft)
         self.assertRaises(ValueError, ft1.union, ft3)
 
@@ -171,16 +186,16 @@ class TestFlatTable(PySparkTest):
                 {"NUM_ENQ": ["3", "2"], "EXE_SOI_DTF": ["01/03/2017", "01/02/2016"]}
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"], {})
         ft = ft1.intersection(ft2)
         df4 = self.spark.createDataFrame(
             pd.DataFrame(
                 OrderedDict([("NUM_ENQ", ["2"]), ("EXE_SOI_DTD", ["01/02/2016"])])
             )
         )
-        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"])
+        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         self.assertEqual(expected_ft, ft)
         self.assertRaises(ValueError, ft1.intersection, ft3)
 
@@ -200,16 +215,16 @@ class TestFlatTable(PySparkTest):
                 {"NUM_ENQ": ["3", "2"], "EXE_SOI_DTF": ["01/03/2017", "01/02/2016"]}
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTF"], {})
         ft = ft1.difference(ft2)
         df4 = self.spark.createDataFrame(
             pd.DataFrame(
                 OrderedDict([("NUM_ENQ", ["1"]), ("EXE_SOI_DTD", ["01/01/2015"])])
             )
         )
-        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"])
+        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         self.assertEqual(expected_ft, ft)
         self.assertRaises(ValueError, ft1.difference, ft3)
 
@@ -223,9 +238,15 @@ class TestFlatTable(PySparkTest):
         df3 = self.spark.createDataFrame(
             pd.DataFrame({"NUM_ENQ": ["3"], "EXE_SOI_DTD": ["01/03/2017"]})
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTD"])
+        single_1 = SingleTable("ST1", df1, "ST1")
+        single_2 = SingleTable("ST2", df2, "ST2")
+        ft1 = FlatTable(
+            "FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {"ST1": single_1}
+        )
+        ft2 = FlatTable(
+            "FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {"ST2": single_2}
+        )
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         ft = FlatTable.union_all([ft1, ft2, ft3])
         df4 = self.spark.createDataFrame(
             pd.DataFrame(
@@ -235,7 +256,13 @@ class TestFlatTable(PySparkTest):
                 }
             )
         )
-        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"])
+        expected_ft = FlatTable(
+            "result",
+            df4,
+            "result",
+            ["NUM_ENQ", "EXE_SOI_DTD"],
+            {"ST1": single_1, "ST2": single_2},
+        )
         self.assertEqual(expected_ft, ft)
 
     def test_intersection_all(self):
@@ -257,16 +284,16 @@ class TestFlatTable(PySparkTest):
                 }
             )
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTD"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         ft = FlatTable.intersection_all([ft1, ft2, ft3], ["NUM_ENQ", "EXE_SOI_DTD"])
         df4 = self.spark.createDataFrame(
             pd.DataFrame(
                 OrderedDict([("NUM_ENQ", ["2"]), ("EXE_SOI_DTD", ["01/02/2016"])])
             )
         )
-        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"])
+        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         self.assertEqual(expected_ft, ft)
 
     def test_different_all(self):
@@ -284,14 +311,14 @@ class TestFlatTable(PySparkTest):
         df3 = self.spark.createDataFrame(
             pd.DataFrame({"NUM_ENQ": ["2"], "EXE_SOI_DTD": ["01/02/2016"]})
         )
-        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"])
-        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTD"])
+        ft1 = FlatTable("FT1", df1, "FT1", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft2 = FlatTable("FT2", df2, "FT2", ["NUM_ENQ", "EXE_SOI_DTD"], {})
+        ft3 = FlatTable("FT3", df3, "FT3", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         ft = FlatTable.difference_all([ft1, ft2, ft3], ["NUM_ENQ", "EXE_SOI_DTD"])
         df4 = self.spark.createDataFrame(
             pd.DataFrame(
                 OrderedDict([("NUM_ENQ", ["3"]), ("EXE_SOI_DTD", ["01/03/2017"])])
             )
         )
-        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"])
+        expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         self.assertEqual(expected_ft, ft)

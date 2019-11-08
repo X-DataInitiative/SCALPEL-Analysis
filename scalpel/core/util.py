@@ -15,11 +15,19 @@ def fold_right(f: Callable, cohorts: Iterable):
 
 
 def data_frame_equality(df1: DataFrame, df2: Optional[DataFrame]) -> bool:
-    df1.schema.fieldNames()
     if isinstance(df1, DataFrame) and (isinstance(df2, DataFrame)):
         return (df1.subtract(df2.select(df1.schema.fieldNames())).count() == 0) and (
             df2.subtract(df1.select(df2.schema.fieldNames())).count() == 0
         )
+    else:
+        return False
+
+
+def is_same_struct_type(df1: DataFrame, df2: Optional[DataFrame]) -> bool:
+    if isinstance(df1, DataFrame) and (isinstance(df2, DataFrame)):
+        schema_1 = {field.name: field.dataType for field in df1.schema.fields}
+        schema_2 = {field.name: field.dataType for field in df2.schema.fields}
+        return schema_1 == schema_2
     else:
         return False
 
