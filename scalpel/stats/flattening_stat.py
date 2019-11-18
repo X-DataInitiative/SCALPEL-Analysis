@@ -4,6 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Callable, List
 
+import pandas
 import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -11,8 +12,9 @@ from pandas import DataFrame as pdDataFrame
 from pyspark.sql.functions import col
 
 from scalpel.core.decorators import logged
-from scalpel.stats.decorators import ylabel, title, CONTEXT_SEABORN
+from scalpel.core.io import write_from_pandas_data_frame
 from scalpel.flattening.flat_table import FlatTable
+from scalpel.stats.decorators import ylabel, title, CONTEXT_SEABORN
 from scalpel.stats.grouper import agg, Aggregator
 from scalpel.stats.plotter import Plotter
 
@@ -36,23 +38,35 @@ def plot_patient_events_each_year_on_months(
     years: List[int] = None,
 ) -> Figure:
     """
-    This method is used to visualize the 'patient events each year on months stat' in
-    seaborn context
-    :param figure: 'matplotlib.figure.Figure' Users can define it like plt.figure() or
-    plt.gcf()
-    :param cohort: 'FlatTable'
-    :param id_col: 'str' identity column default = 'NUM_ENQ'
-    :param date_col: 'str' data column used for 'group by' statement
-    default = 'EXE_SOI_DTD'
-    :param years: a list of special years in which the data will be loaded,
-    default is None
-    :return: 'matplotlib.figure.Figure'
+    This method is used to visualize the 'patient events each year on months stat'
+    in seaborn context.
+
+    Parameters
+    ----------
+    figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
+    cohort: FlatTable, a flat table.
+    id_col: str, identity column default = 'NUM_ENQ'.
+    date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
+    years: a list of special years in which the data will be loaded, default is None.
+
+    Examples
+    --------
+    This is an example to illustrate how to use the function in jupyter.
+    >>> with open("metadata_flattening.json", "r") as f:
+    ...     dcir_collection = FlatTableCollection.from_json(f.read())
+    >>> dcir = dcir_collection.get("DCIR")
+    >>> plot_patient_events_each_year_on_months(plt.figure(figsize=(12, 8)), dcir)
+    >>> plt.show()
     """
     item = "{} as id, year({}) as year, month({}) as month".format(
         id_col, date_col, date_col
     )
     new_cohort = FlatTable(
-        cohort.name, cohort[item], cohort.characteristics, ["id", "year", "month"]
+        cohort.name,
+        cohort[item],
+        cohort.characteristics,
+        ["id", "year", "month"],
+        cohort.single_tables,
     )
     return FlatteningEventsEachYearOnMonthsStat()(
         figure, new_cohort, id_col=id_col, date_col=date_col, years=years
@@ -70,24 +84,35 @@ def plot_patients_each_year_on_months(
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
 ) -> Figure:
+    """This method is used to visualize the 'patients each year on months stat'
+    in seaborn context.
+
+    Parameters
+    ----------
+    figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
+    cohort: FlatTable, a flat table.
+    id_col: str, identity column default = 'NUM_ENQ'.
+    date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
+    years: a list of special years in which the data will be loaded, default is None.
+
+    Examples
+    --------
+    This is an example to illustrate how to use the function in jupyter.
+    >>> with open("metadata_flattening.json", "r") as f:
+    ...     dcir_collection = FlatTableCollection.from_json(f.read())
+    >>> dcir = dcir_collection.get("DCIR")
+    >>> plot_patients_each_year_on_months(plt.figure(figsize=(12, 8)), dcir)
+    >>> plt.show()
     """
-       This method is used to visualize the 'patients each year on months stat' in seaborn
-       context
-       :param figure: 'matplotlib.figure.Figure' Users can define it like plt.figure() or
-       plt.gcf()
-       :param cohort: 'FlatTable'
-       :param id_col: 'str' identity column default = 'NUM_ENQ'
-       :param date_col: 'str' data column used for 'group by' statement
-       default = 'EXE_SOI_DTD'
-       :param years: a list of special years in which the data will be loaded, default is
-       None
-       :return: 'matplotlib.figure.Figure'
-       """
     item = "distinct {} as id, year({}) as year, month({}) as month".format(
         id_col, date_col, date_col
     )
     new_cohort = FlatTable(
-        cohort.name, cohort[item], cohort.characteristics, ["id", "year", "month"]
+        cohort.name,
+        cohort[item],
+        cohort.characteristics,
+        ["id", "year", "month"],
+        cohort.single_tables,
     )
     return FlatteningEventsEachYearOnMonthsStat()(
         figure, new_cohort, id_col=id_col, date_col=date_col, years=years
@@ -105,22 +130,33 @@ def plot_patient_events_on_years(
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
 ) -> Figure:
-    """
-     This method is used to visualize the 'patient events on years stat' int seaborn
-     context
-    :param figure: 'matplotlib.figure.Figure' Users can define it like plt.figure() or
-    plt.gcf()
-    :param cohort: 'FlatTable'
-    :param id_col: 'str' identity column default = 'NUM_ENQ'
-    :param date_col: 'str' data column used for 'group by' statement
-    default = 'EXE_SOI_DTD'
-    :param years: a list of special years in which the data will be loaded,
-    default is None
-    :return: 'matplotlib.figure.Figure'
+    """This method is used to visualize the 'patient events on years stat'
+    int seaborn context.
+
+    Parameters
+    ----------
+    figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
+    cohort: FlatTable, a flat table.
+    id_col: str, identity column default = 'NUM_ENQ'.
+    date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
+    years: a list of special years in which the data will be loaded, default is None.
+
+    Examples
+    --------
+    This is an example to illustrate how to use the function in jupyter.
+    >>> with open("metadata_flattening.json", "r") as f:
+    ...     dcir_collection = FlatTableCollection.from_json(f.read())
+    >>> dcir = dcir_collection.get("DCIR")
+    >>> plot_patient_events_on_years(plt.figure(figsize=(12, 8)), dcir)
+    >>> plt.show()
     """
     item = "{} as id, year({}) as year".format(id_col, date_col)
     new_cohort = FlatTable(
-        cohort.name, cohort[item], cohort.characteristics, ["id", "year"]
+        cohort.name,
+        cohort[item],
+        cohort.characteristics,
+        ["id", "year"],
+        cohort.single_tables,
     )
     return FlatteningEventsOnYearsStat()(
         figure, new_cohort, id_col=id_col, date_col=date_col, years=years
@@ -138,21 +174,33 @@ def plot_patients_on_years(
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
 ) -> Figure:
-    """
-     This method is used to visualize the 'patients on years stat' int seaborn context
-    :param figure: 'matplotlib.figure.Figure' Users can define it like plt.figure() or
-    plt.gcf()
-    :param cohort: 'FlatTable'
-    :param id_col: 'str' identity column default = 'NUM_ENQ'
-    :param date_col: 'str' data column used for 'group by' statement
-    default = 'EXE_SOI_DTD'
-    :param years: a list of special years in which the data will be loaded,
-    default is None
-    :return: 'matplotlib.figure.Figure'
+    """This method is used to visualize the 'patients on years stat'
+    in seaborn context
+
+    Parameters
+    ----------
+    figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
+    cohort: FlatTable, a flat table.
+    id_col: str, identity column default = 'NUM_ENQ'.
+    date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
+    years: a list of special years in which the data will be loaded, default is None.
+
+    Examples
+    --------
+    This is an example to illustrate how to use the function in jupyter.
+    >>> with open("metadata_flattening.json", "r") as f:
+    ...     dcir_collection = FlatTableCollection.from_json(f.read())
+    >>> dcir = dcir_collection.get("DCIR")
+    >>> plot_patients_on_years(plt.figure(figsize=(12, 8)), dcir)
+    >>> plt.show()
     """
     item = "distinct {} as id, year({}) as year".format(id_col, date_col)
     new_cohort = FlatTable(
-        cohort.name, cohort[item], cohort.characteristics, ["id", "year"]
+        cohort.name,
+        cohort[item],
+        cohort.characteristics,
+        ["id", "year"],
+        cohort.single_tables,
     )
     return FlatteningEventsOnYearsStat()(
         figure, new_cohort, id_col=id_col, date_col=date_col, years=years
@@ -206,19 +254,52 @@ def _events_on_years_patcher(ax: Axes, **kwargs):
 
 
 def _plot_concept_flattening_stat(
-    figure: Figure, cohort: FlatTable, agg_func, plotter, patch, patcher, **kwargs
+    figure: Figure,
+    cohort: FlatTable,
+    agg_func,
+    plotter,
+    patch,
+    patcher,
+    show=False,
+    show_func=print,
+    save_path=None,
+    **kwargs
 ) -> Figure:
     data = agg_func(cohort, **kwargs)
-    ax = plotter(figure, data, **kwargs)
+    fig = plotter(figure, data, **kwargs)
     if patch:
-        patcher(ax, **kwargs)
+        patcher(fig, **kwargs)
+    if show:
+        with pandas.option_context(
+            "display.max_rows", None, "display.max_columns", None
+        ):
+            show_func(data)
+    if save_path:
+        write_from_pandas_data_frame(data, save_path)
     return figure
 
 
 class FlatteningStat(ABC):
-    def __call__(self, figure: Figure, cohort: FlatTable, **kwargs) -> Figure:
+    def __call__(
+        self,
+        figure: Figure,
+        cohort: FlatTable,
+        show=False,
+        show_func=print,
+        save_path=None,
+        **kwargs
+    ) -> Figure:
         return _plot_concept_flattening_stat(
-            figure, cohort, self.agg, self.plotter, self.patch, self.patcher, **kwargs
+            figure,
+            cohort,
+            self.agg,
+            self.plotter,
+            self.patch,
+            self.patcher,
+            show,
+            show_func,
+            save_path,
+            **kwargs
         )
 
     @property

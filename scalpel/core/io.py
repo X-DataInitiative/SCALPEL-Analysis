@@ -4,6 +4,7 @@ import logging
 import sys
 from logging import Logger
 
+from pandas import DataFrame as pdDataFrame
 from pyspark.sql import DataFrame, SQLContext, SparkSession
 
 
@@ -41,3 +42,9 @@ def read_data_frame(filepath: str) -> DataFrame:
 
 def write_data_frame(dataframe: DataFrame, filepath: str, mode="overwrite") -> None:
     return dataframe.write.parquet(filepath, mode)
+
+
+def write_from_pandas_data_frame(
+    dataframe: pdDataFrame, filepath: str, mode="overwrite"
+) -> None:
+    return get_spark_context().createDataFrame(dataframe).write.parquet(filepath, mode)

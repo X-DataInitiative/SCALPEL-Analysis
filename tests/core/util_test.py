@@ -1,11 +1,13 @@
 # License: BSD 3 clause
 
 import pytz
+
 from scalpel.core.util import (
     data_frame_equality,
     fold_right,
     rename_df_columns,
     index_string_column,
+    is_same_struct_type,
 )
 from .pyspark_tests import PySparkTest
 
@@ -25,6 +27,12 @@ class TestUtil(PySparkTest):
 
         self.assertTrue(data_frame_equality(df, df))
         self.assertFalse(data_frame_equality(df, None))
+
+    def test_is_same_struct_type(self):
+        df, _ = self.create_spark_df({"patientID": [1, 2, 3]})
+
+        self.assertTrue(is_same_struct_type(df, df))
+        self.assertFalse(is_same_struct_type(df, None))
 
     def test_rename_columns(self):
         some_events = {
