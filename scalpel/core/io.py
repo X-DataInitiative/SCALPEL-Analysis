@@ -6,6 +6,7 @@ from logging import Logger
 
 from pandas import DataFrame as pdDataFrame
 from pyspark.sql import DataFrame, SQLContext, SparkSession
+from pyspark import SparkContext
 
 
 def get_logger() -> Logger:
@@ -32,12 +33,16 @@ def quiet_spark_logger(sc: SparkSession) -> Logger:
     return logger
 
 
-def get_spark_context():
+def get_sql_context() -> SQLContext:
     return SQLContext.getOrCreate(SparkSession.builder.getOrCreate())
 
 
+def get_spark_context() -> SparkContext:
+    return SparkContext.getOrCreate()
+
+
 def read_data_frame(filepath: str) -> DataFrame:
-    return get_spark_context().read.parquet(filepath)
+    return get_sql_context().read.parquet(filepath)
 
 
 def write_data_frame(dataframe: DataFrame, filepath: str, mode="overwrite") -> None:

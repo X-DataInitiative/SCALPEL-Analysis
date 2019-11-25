@@ -6,6 +6,7 @@ from copy import copy
 from typing import List
 
 from scalpel.core.decorators import deprecated
+from scalpel.core.io import get_logger, get_spark_context
 from .cohort import Cohort
 from .cohort_collection import CohortCollection
 
@@ -80,6 +81,8 @@ class CohortFlow:
         CohortFlow represents the evolution of the input_cohort cohort population when
         intersected successively with each step of the existing instance of CohortFlow.
         """
+
+        logger = get_logger()
         steps_length = self.__len__()
         if steps_length == 0:
             warnings.warn("You are initiating a en Empty Flowchart.")
@@ -91,10 +94,22 @@ class CohortFlow:
                 self.ordered_cohorts[0],
                 self.ordered_cohorts[0].intersection(self.ordered_cohorts[1]),
             ]
+        elif steps_length > 5:
+            get_spark_context().setCheckpointDir("/shared/tmp")
+            new_steps = [self.ordered_cohorts[0].checkpoint()]
+            logger.info("Step {} applied".format(self.ordered_cohorts[0].name))
+            for step in self.ordered_cohorts[1:]:
+                logger.info("Step {} applied".format(step.name))
+                last_step = new_steps[-1].intersection(step.checkpoint())
+                new_steps.append(last_step.checkpoint())
+            self.steps = new_steps
         else:
             new_steps = [self.ordered_cohorts[0]]
+            logger.info("Step {} applied".format(self.ordered_cohorts[0].name))
             for step in self.ordered_cohorts[1:]:
-                new_steps.append(new_steps[-1].intersection(step))
+                logger.info("Step {} applied".format(step.name))
+                last_step = new_steps[-1].intersection(step)
+                new_steps.append(last_step)
             self.steps = new_steps
 
     def prepend_cohort(self, input: Cohort) -> "CohortFlow":

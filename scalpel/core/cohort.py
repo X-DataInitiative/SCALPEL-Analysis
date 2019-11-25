@@ -284,6 +284,20 @@ class Cohort(object):
     def from_description(description: str) -> "Cohort":
         raise NotImplementedError
 
+    def checkpoint(self) -> "Cohort":
+        subjects = self.subjects.checkpoint()
+        if self.events is not None:
+            events = self.events.checkpoint()
+            return Cohort(self.name, self.characteristics, subjects, events)
+        return Cohort(self.name, self.characteristics, subjects, None)
+
+    def cache(self) -> "Cohort":
+        self.subjects = self.subjects.cache()
+        if self.events is not None:
+            self.events = self.events.cache()
+
+        return self
+
 
 def _union(a: Cohort, b: Cohort) -> Cohort:
     if a.events is None or b.events is None:
@@ -302,8 +316,8 @@ def _union(a: Cohort, b: Cohort) -> Cohort:
 
 
 def _intersection(a: Cohort, b: Cohort) -> Cohort:
-    subjects_id = a.subjects.select("patientID").intersect(
-        b.subjects.select("patientID")
+    subjects_id = a.subjects.select("patientID").join(
+        b.subjects.select("patientID"), on="patientID", how="inner"
     )
     subjects = a.subjects.join(subjects_id, on="patientID", how="right")
     events = None
