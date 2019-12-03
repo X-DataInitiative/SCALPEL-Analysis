@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import pandas as pd
 
-from scalpel.flattening.flat_table import FlatTable
+from scalpel.flattening.flat_table import FlatTable, HistoryTable
 from scalpel.flattening.single_table import SingleTable
 from tests.core.pyspark_tests import PySparkTest
 
@@ -322,3 +322,49 @@ class TestFlatTable(PySparkTest):
         )
         expected_ft = FlatTable("result", df4, "result", ["NUM_ENQ", "EXE_SOI_DTD"], {})
         self.assertEqual(expected_ft, ft)
+
+    def test_build_history_table(self):
+        df1 = self.spark.createDataFrame(
+            pd.DataFrame(
+                {"NUM_ENQ": ["1", "2"], "EXE_SOI_DTD": ["01/01/2015", "01/01/2016"]}
+            )
+        )
+
+        df2 = self.spark.createDataFrame(
+            pd.DataFrame(
+                {
+                    "NUM_ENQ": ["1", "2"],
+                    "EXE_SOI_DTD": ["01/01/2015", "01/01/2016"],
+                    "history": ["2018", "2018"],
+                }
+            )
+        )
+
+        df3 = self.spark.createDataFrame(
+            pd.DataFrame(
+                OrderedDict(
+                    [
+                        ("NUM_ENQ", ["1", "2", "1", "2", "1", "2"]),
+                        (
+                            "EXE_SOI_DTD",
+                            [
+                                "01/01/2015",
+                                "01/01/2016",
+                                "01/01/2015",
+                                "01/01/2016",
+                                "01/01/2015",
+                                "01/01/2016",
+                            ],
+                        ),
+                        ("history", ["2016", "2016", "2017", "2017", "2018", "2018"]),
+                    ]
+                )
+            )
+        )
+
+        data = {"2016": df1, "2017": df1, "2018": df2}
+
+        table = HistoryTable.build("2016 2017 2018", "2016 2017 2018", data)
+        expected = HistoryTable("result", df3, "result")
+
+        self.assertEqual(expected, table)

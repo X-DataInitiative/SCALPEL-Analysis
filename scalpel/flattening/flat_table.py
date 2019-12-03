@@ -1,9 +1,10 @@
 # License: BSD 3 clause
 
-from functools import partial
+from functools import partial, reduce
 from typing import Dict, Iterable, List
 
 from pyspark.sql import DataFrame
+from pyspark.sql.functions import lit
 
 from scalpel.core.io import read_data_frame
 from scalpel.core.util import fold_right, is_same_struct_type
@@ -239,3 +240,73 @@ def _difference(a: FlatTable, b: FlatTable, join_keys: List[str]) -> FlatTable:
         [*a.join_keys],
         {**a.single_tables},
     )
+
+
+class HistoryTable(FlatTable, object):
+    """
+    The history table will be used to plot the differences between the past and
+    the current cohorts.
+    It loads the stats of cohorts from save path:
+        1. patient events each year on months
+        2. patients each year on months
+        3. patient events on years
+        4. patients on years
+    and then unites the same sort but different extracted date of data.
+
+    Parameters
+    ----------
+    name: str
+        Flat table name.
+    source: str
+        Data collection of this flat table.
+    characteristics: str
+        The flat table name that will show in the pyplot figure.
+    """
+
+    def __init__(self, name: str, source: DataFrame, characteristics: str):
+        assert isinstance(name, str), "Name should be a str"
+        assert isinstance(source, DataFrame), "Source should be a spark data frame"
+        assert isinstance(characteristics, str), "Characteristics should be a str"
+        super(FlatTable, self).__init__()
+        self._name = name
+        self._df = source
+        self._chs = characteristics
+
+    def __getattr__(self, item):
+        # History table doesn't have join keys and single tables
+        if "_jk" == str(item):
+            return []
+        if "_single_tables" == str(item):
+            return {}
+        raise AttributeError("HistoryTable has no attr {}".format(str(item)))
+
+    @classmethod
+    def build(
+        cls, name: str, characteristics: str, data: Dict[str, DataFrame]
+    ) -> "HistoryTable":
+        """
+        return a history table containing union of stats in a dict
+
+        Parameters
+        ----------
+        name: str
+            Flat table name.
+        source: str
+            Data collection of this flat table.
+        characteristics: str
+            The flat table name that will show in the pyplot figure.
+        data: Dict Dict[str, DataFrame]
+            a dict of dataframes which will be united
+        """
+
+        def _build(path_name: str, df: DataFrame) -> HistoryTable:
+            if "history" not in df.columns:
+                source = df.withColumn("history", lit(path_name))
+            else:
+                source = df
+            return cls(path_name, source, path_name)
+
+        flat_table = reduce(
+            lambda a, b: a.union(b), [_build(name, df) for (name, df) in data.items()]
+        )
+        return cls(name, flat_table.source, characteristics)
