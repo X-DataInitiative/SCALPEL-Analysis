@@ -9,13 +9,13 @@ import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pandas import DataFrame as pdDataFrame
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, count
 
 from scalpel.core.decorators import logged
 from scalpel.core.io import write_from_pandas_data_frame
 from scalpel.flattening.flat_table import FlatTable
 from scalpel.stats.decorators import ylabel, title, CONTEXT_SEABORN
-from scalpel.stats.grouper import agg, Aggregator
+from scalpel.stats.grouper import Aggregator
 from scalpel.stats.plotter import Plotter
 
 registry = []
@@ -33,6 +33,9 @@ def register(f):
 def plot_patient_events_each_year_on_months(
     figure: Figure,
     cohort: FlatTable,
+    show=False,
+    show_func=print,
+    save_path=None,
     id_col: str = "NUM_ENQ",
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
@@ -45,6 +48,13 @@ def plot_patient_events_each_year_on_months(
     ----------
     figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
     cohort: FlatTable, a flat table.
+    show: {False, True}, optional,
+        If show the pandas table of confidence degree, default first when optional.
+    show_func: optional
+        Function to show a pandas table, print by default.
+    save_path: str, optional
+        the HDFS path to persist the pandas table, None by default, the save data can be
+        used in stat history api.
     id_col: str, identity column default = 'NUM_ENQ'.
     date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
     years: a list of special years in which the data will be loaded, default is None.
@@ -69,7 +79,14 @@ def plot_patient_events_each_year_on_months(
         cohort.single_tables,
     )
     return FlatteningEventsEachYearOnMonthsStat()(
-        figure, new_cohort, id_col=id_col, date_col=date_col, years=years
+        figure,
+        new_cohort,
+        show=show,
+        show_func=show_func,
+        save_path=save_path,
+        id_col=id_col,
+        date_col=date_col,
+        years=years,
     )
 
 
@@ -80,6 +97,9 @@ def plot_patient_events_each_year_on_months(
 def plot_patients_each_year_on_months(
     figure: Figure,
     cohort: FlatTable,
+    show=False,
+    show_func=print,
+    save_path=None,
     id_col: str = "NUM_ENQ",
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
@@ -91,6 +111,13 @@ def plot_patients_each_year_on_months(
     ----------
     figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
     cohort: FlatTable, a flat table.
+    show: {False, True}, optional,
+        If show the pandas table of confidence degree, default first when optional.
+    show_func: optional
+        Function to show a pandas table, print by default.
+    save_path: str, optional
+        the HDFS path to persist the pandas table, None by default, the save data can be
+        used in stat history api.
     id_col: str, identity column default = 'NUM_ENQ'.
     date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
     years: a list of special years in which the data will be loaded, default is None.
@@ -115,7 +142,14 @@ def plot_patients_each_year_on_months(
         cohort.single_tables,
     )
     return FlatteningEventsEachYearOnMonthsStat()(
-        figure, new_cohort, id_col=id_col, date_col=date_col, years=years
+        figure,
+        new_cohort,
+        show=show,
+        show_func=show_func,
+        save_path=save_path,
+        id_col=id_col,
+        date_col=date_col,
+        years=years,
     )
 
 
@@ -126,6 +160,9 @@ def plot_patients_each_year_on_months(
 def plot_patient_events_on_years(
     figure: Figure,
     cohort: FlatTable,
+    show=False,
+    show_func=print,
+    save_path=None,
     id_col: str = "NUM_ENQ",
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
@@ -137,6 +174,13 @@ def plot_patient_events_on_years(
     ----------
     figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
     cohort: FlatTable, a flat table.
+     show: {False, True}, optional,
+        If show the pandas table of confidence degree, default first when optional.
+    show_func: optional
+        Function to show a pandas table, print by default.
+    save_path: str, optional
+        the HDFS path to persist the pandas table, None by default, the save data can be
+        used in stat history api.
     id_col: str, identity column default = 'NUM_ENQ'.
     date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
     years: a list of special years in which the data will be loaded, default is None.
@@ -159,7 +203,14 @@ def plot_patient_events_on_years(
         cohort.single_tables,
     )
     return FlatteningEventsOnYearsStat()(
-        figure, new_cohort, id_col=id_col, date_col=date_col, years=years
+        figure,
+        new_cohort,
+        show=show,
+        show_func=show_func,
+        save_path=save_path,
+        id_col=id_col,
+        date_col=date_col,
+        years=years,
     )
 
 
@@ -170,6 +221,9 @@ def plot_patient_events_on_years(
 def plot_patients_on_years(
     figure: Figure,
     cohort: FlatTable,
+    show=False,
+    show_func=print,
+    save_path=None,
     id_col: str = "NUM_ENQ",
     date_col: str = "EXE_SOI_DTD",
     years: List[int] = None,
@@ -181,6 +235,13 @@ def plot_patients_on_years(
     ----------
     figure: matplotlib.figure.Figure, users can define it like plt.figure() or plt.gcf().
     cohort: FlatTable, a flat table.
+     show: {False, True}, optional,
+        If show the pandas table of confidence degree, default first when optional.
+    show_func: optional
+        Function to show a pandas table, print by default.
+    save_path: str, optional
+        the HDFS path to persist the pandas table, None by default, the save data can be
+        used in stat history api.
     id_col: str, identity column default = 'NUM_ENQ'.
     date_col: str, data column used for 'group by' statement, default = 'EXE_SOI_DTD'.
     years: a list of special years in which the data will be loaded, default is None.
@@ -203,7 +264,14 @@ def plot_patients_on_years(
         cohort.single_tables,
     )
     return FlatteningEventsOnYearsStat()(
-        figure, new_cohort, id_col=id_col, date_col=date_col, years=years
+        figure,
+        new_cohort,
+        show=show,
+        show_func=show_func,
+        save_path=save_path,
+        id_col=id_col,
+        date_col=date_col,
+        years=years,
     )
 
 
@@ -214,7 +282,12 @@ def _events_each_year_on_months_agg(cohort: FlatTable, **kwargs) -> pdDataFrame:
     df = cohort.source.fillna(0)
     if years_condition:
         df = df.where(col("year").isin(years_condition))
-    return agg(df, frozenset(["year", "month"]), "count").sort_values(["year", "month"])
+    return (
+        df.groupBy(list(frozenset(["year", "month"])))
+        .agg(count("id").alias("count"))
+        .toPandas()
+        .sort_values(["year", "month"])
+    )
 
 
 def _events_on_years_agg(cohort: FlatTable, **kwargs) -> pdDataFrame:
@@ -224,19 +297,24 @@ def _events_on_years_agg(cohort: FlatTable, **kwargs) -> pdDataFrame:
     df = cohort.source.fillna(0)
     if years_condition:
         df = df.where(col("year").isin(years_condition))
-    return agg(df, frozenset(["year"]), "count").sort_values(["year"])
+    return (
+        df.groupBy(list(frozenset(["year"])))
+        .agg(count("id").alias("count"))
+        .toPandas()
+        .sort_values(["year"])
+    )
 
 
 def _events_each_year_on_months_plotter(
     figure: Figure, data: pdDataFrame, **kwargs
 ) -> Axes:
     # Draw a set of vertical bars with nested grouping by years and months
-    return sns.barplot(x="month", y="count(1)", hue="year", ax=figure.gca(), data=data)
+    return sns.barplot(x="month", y="count", hue="year", ax=figure.gca(), data=data)
 
 
 def _events_on_years_plotter(figure: Figure, data: pdDataFrame, **kwargs) -> Axes:
     # Draw a set of vertical bars grouping by years
-    return sns.barplot(x="year", y="count(1)", ax=figure.gca(), data=data)
+    return sns.barplot(x="year", y="count", ax=figure.gca(), data=data)
 
 
 def _events_each_year_on_months_patcher(ax: Axes, **kwargs):
@@ -244,6 +322,9 @@ def _events_each_year_on_months_patcher(ax: Axes, **kwargs):
     if "date_col" in kwargs.keys():
         label = kwargs["date_col"]
     ax.set_xlabel("{} group by month".format(label))
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
+    ax.legend(loc="center right", bbox_to_anchor=(1.25, 0.5), ncol=1)
 
 
 def _events_on_years_patcher(ax: Axes, **kwargs):
