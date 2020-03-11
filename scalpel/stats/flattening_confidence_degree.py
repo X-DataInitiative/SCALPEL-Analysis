@@ -44,7 +44,7 @@ _MCO_COLS = {
 
 _MCO_CE_COLS = {
     "MCO_FMSTC": {"CamCode": "CCAM_COD"},
-    "MCO_FASTC": {"CodeSex": "COD_SEX", "AgeYear": "AGE_ANN"},
+    "MCO_FASTC": {"CodeSex": "COD_SEX", "ExitYear": "SOR_ANN", "ExitMonth": "SOR_MOI"},
 }
 
 _CNAM_COLS_MAPPING = {"DCIR": _DCIR_COLS, "MCO": _MCO_COLS, "MCO_CE": _MCO_CE_COLS}
