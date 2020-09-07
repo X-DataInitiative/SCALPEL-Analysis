@@ -47,7 +47,31 @@ _MCO_CE_COLS = {
     "MCO_FASTC": {"CodeSex": "COD_SEX", "ExitYear": "SOR_ANN", "ExitMonth": "SOR_MOI"},
 }
 
-_CNAM_COLS_MAPPING = {"DCIR": _DCIR_COLS, "MCO": _MCO_COLS, "MCO_CE": _MCO_CE_COLS}
+_SSR_COLS = {
+    "SSR_B": {"DP": "MOR_PRP", "DR": "ETL_AFF", "FP_PEC": "FP_PEC"},
+    "SSR_D": {"DA": "DGN_COD"},
+    "SSR_CCAM": {"CCAM": "CCAM_ACT"},
+    "SSR_CSARR": {"CSARR": "CSARR_COD"},
+}
+
+_SSR_CE_COLS = {
+    "SSR_FMSTC": {"CamCode": "CCAM_COD"},
+}
+
+_HAD_COLS = {
+    "HAD_A": {"CCAM": "CCAM_COD"},
+    "HAD_B": {"DP": "DGN_PAL", "PEC_PAL": "PEC_PAL", "PEC_ASS": "PEC_ASS"},
+    "HAD_D": {"DA": "DGN_ASS"},
+}
+
+_CNAM_COLS_MAPPING = {
+    "DCIR": _DCIR_COLS,
+    "MCO": _MCO_COLS,
+    "MCO_CE": _MCO_CE_COLS,
+    "SSR": _SSR_COLS,
+    "SSR_CE": _SSR_CE_COLS,
+    "HAD": _HAD_COLS,
+}
 
 
 @ylabel("Confidence Degree(%)", CONTEXT_SEABORN)
@@ -145,6 +169,12 @@ def _confidence_degree_agg(flat_table: FlatTable, **kwargs) -> PDDataFrame:
         group_by_cols = frozenset(["ETA_NUM", "RSA_NUM"])
     elif flat_table.name == "MCO_CE":
         group_by_cols = frozenset(["ETA_NUM", "SEQ_NUM"])
+    elif flat_table.name == "SSR":
+        group_by_cols = frozenset(["ETA_NUM", "RHA_NUM", "RHS_NUM"])
+    elif flat_table.name == "SSR_CE":
+        group_by_cols = frozenset(["ETA_NUM", "SEQ_NUM"])
+    elif flat_table.name == "HAD":
+        group_by_cols = frozenset(["ETA_NUM_EPMSI", "RHAD_NUM"])
     else:
         group_by_cols = None
     col = when(max("count") != 0, min("count") / max("count") * 100).otherwise(0)
