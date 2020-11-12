@@ -284,6 +284,12 @@ class Cohort(object):
     def from_description(description: str) -> "Cohort":
         raise NotImplementedError
 
+    def cache(self) -> "Cohort":
+        self.subjects = self.subjects.cache()
+        if self.events is not None:
+            self.events = self.events.cache()
+        return self
+
 
 def _union(a: Cohort, b: Cohort) -> Cohort:
     if a.events is None or b.events is None:

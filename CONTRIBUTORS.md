@@ -7,3 +7,4 @@ The _SCALPEL-Analysis_ package was initially implemented by researchers, develop
 - Youcef Sebiat
 - Maryan Morel
 - Dinh Phong Nguyen
+- Dian Sun

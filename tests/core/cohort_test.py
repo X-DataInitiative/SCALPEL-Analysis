@@ -297,3 +297,19 @@ class TestCohort(PySparkTest):
             },
             cohort_2.save_cohort("../../output"),
         )
+
+    def test_cache(self):
+        patients_pd = pd.DataFrame({"patientID": [1, 2, 3]})
+        events_pd = pd.DataFrame({"patientID": [1, 2, 3], "value": ["DP", "DAS", "DR"]})
+
+        patients = self.spark.createDataFrame(patients_pd)
+
+        events = self.spark.createDataFrame(events_pd)
+        cohort = Cohort("liberal_fractures", "liberal_fractures", patients, events)
+        cohort.cache()
+        assert cohort.subjects.storageLevel.useMemory
+        assert cohort.events.storageLevel.useMemory
+
+    def test_from_description(self):
+        self.assertRaises(NotImplementedError, Cohort.from_description,
+                          description='some string')

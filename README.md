@@ -237,6 +237,7 @@ If you use a library part of _SCALPEL3_ in a scientific publication, we would ap
       year={2020},
       publisher={Elsevier}
     }
+
  
 ## Contributing
 The development cycle is opinionated. Each time you commit, git will
